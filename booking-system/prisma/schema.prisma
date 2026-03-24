@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FACULTY
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(FACULTY)
+  bookings  Booking[]
+  throttleAudits LoginThrottleAudit[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Hall {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  capacity  Int?
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Booking {
+  id        String        @id @default(uuid())
+  userId    String
+  hallId    String
+  startTime DateTime
+  endTime   DateTime
+  status    BookingStatus @default(PENDING)
+  purpose   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id])
+  hall      Hall          @relation(fields: [hallId], references: [id])
+
+  @@index([hallId, startTime, endTime])
+  @@index([status])
+}
+
+model LoginThrottle {
+  key          String               @id
+  attempts     Int                  @default(0)
+  windowStart  DateTime
+  blockedUntil DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  audits       LoginThrottleAudit[]
+}
+
+model LoginThrottleAudit {
+  id          String   @id @default(uuid())
+  throttleKey String?
+  adminUserId String
+  action      String
+  note        String?
+  createdAt   DateTime @default(now())
+
+  throttle    LoginThrottle? @relation(fields: [throttleKey], references: [key], onDelete: SetNull)
+  adminUser   User           @relation(fields: [adminUserId], references: [id])
+
+  @@index([throttleKey, createdAt])
+  @@index([adminUserId, createdAt])
+}
