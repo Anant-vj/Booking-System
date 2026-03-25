@@ -31,6 +31,7 @@ export function FacultyDashboard() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string>("");
+  const [purposeError, setPurposeError] = useState(false);
 
   const [form, setForm] = useState({
     hallId: "",
@@ -74,6 +75,11 @@ export function FacultyDashboard() {
 
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!form.purpose.trim()) {
+      setPurposeError(true);
+      return;
+    }
+    setPurposeError(false);
     setSubmitting(true);
     setMessage("");
 
@@ -119,9 +125,10 @@ export function FacultyDashboard() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 md:flex-row">
+        <section className="w-full md:w-1/2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
         <p className="mt-1 text-sm text-gray-500">
           Requests are saved as pending. Only approved bookings block slots.
         </p>
@@ -161,13 +168,20 @@ export function FacultyDashboard() {
               required
             />
           </label>
-          <label className="grid gap-1 text-sm text-gray-700">
-            Purpose (optional)
+          <label className="grid gap-1 text-sm font-medium text-gray-700">
+            Purpose
             <textarea
-              className="min-h-20 rounded-md border border-gray-300 px-3 py-2 text-gray-800 focus:border-blue-400 focus:outline-none"
+              className={`min-h-20 rounded-md border px-3 py-2 text-gray-800 focus:outline-none focus:ring-1 transition-colors ${
+                purposeError ? "border-red-400 focus:border-red-400 focus:ring-red-400" : "border-gray-300 focus:border-blue-400 focus:ring-blue-400"
+              }`}
               value={form.purpose}
-              onChange={(e) => setForm((prev) => ({ ...prev, purpose: e.target.value }))}
+              onChange={(e) => {
+                setForm((prev) => ({ ...prev, purpose: e.target.value }));
+                if (e.target.value.trim()) setPurposeError(false);
+              }}
+              required
             />
+            {purposeError && <span className="text-sm text-red-500">Purpose is required.</span>}
           </label>
           <button
             disabled={submitting}
@@ -180,9 +194,9 @@ export function FacultyDashboard() {
         {message ? <p className="mt-3 text-sm text-blue-700">{message}</p> : null}
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="w-full md:w-1/2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 overflow-x-auto w-full">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
@@ -195,8 +209,10 @@ export function FacultyDashboard() {
             <tbody>
               {bookings.map((booking) => (
                 <tr key={booking.id} className="border-b border-slate-100">
-                  <td className="py-2 text-gray-800 font-medium">{booking.hall.name}</td>
-                  <td className="py-2 text-gray-700">
+                  <td className="py-2 text-gray-800 font-medium">
+                    <span className="truncate block max-w-[120px] md:max-w-none" title={booking.hall.name}>{booking.hall.name}</span>
+                  </td>
+                  <td className="py-2 text-gray-700 whitespace-nowrap">
                     {formatDateTime(booking.startTime)} - {formatDateTime(booking.endTime)}
                   </td>
                   <td className="py-2">
@@ -232,8 +248,9 @@ export function FacultyDashboard() {
           </table>
         </div>
       </section>
+      </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Hall Availability (Approved Only)</h2>
         <p className="mt-1 text-sm text-gray-500">
           This acts as a lightweight calendar view of occupied slots per hall.

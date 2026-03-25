@@ -11,7 +11,7 @@ export default async function FacultyPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto w-full max-w-5xl">
         <header className="mb-6 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Faculty Dashboard</h1>

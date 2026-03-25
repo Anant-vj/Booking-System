@@ -25,6 +25,25 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+@media (max-width: 768px) {
+  .fc .fc-toolbar-title {
+    font-size: 1.125rem !important; /* text-lg */
+  }
+  .fc .fc-button {
+    font-size: 0.875rem !important; /* text-sm */
+    padding: 0.25rem 0.5rem !important;
+  }
+  .fc .fc-toolbar {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+}
+
 @layer base {
   h1, h2, h3, h4, h5, h6 {
     @apply text-gray-900 font-semibold;

@@ -333,10 +333,10 @@ export function AdminDashboard() {
               placeholder="Search faculty/hall/purpose"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:outline-none transition-colors"
+              className="w-full md:w-64 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
             />
             <select
-              className="w-48 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none transition-colors"
+              className="w-full md:w-48 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none transition-colors"
               value={statusFilter}
               onChange={(e) => {
                 const next = e.target.value as BookingStatus | "ALL";
@@ -353,7 +353,7 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-sm md:text-base">
             <thead>
               <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
                 <th className="py-2">Faculty</th>
@@ -430,18 +430,18 @@ export function AdminDashboard() {
                 type="button"
                 disabled={bookingPage <= 1}
                 onClick={() => void loadBookings(statusFilter, bookingPage - 1)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-300"
+                className="rounded border border-gray-300 px-2 py-1 text-xs font-medium cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-100 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent transition-colors"
               >
                 Prev
               </button>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-600">
                 Page {bookingPage} / {Math.max(1, Math.ceil(bookingTotal / bookingPageSize))}
               </span>
               <button
                 type="button"
                 disabled={bookingPage * bookingPageSize >= bookingTotal}
                 onClick={() => void loadBookings(statusFilter, bookingPage + 1)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-300"
+                className="rounded border border-gray-300 px-2 py-1 text-xs font-medium cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-100 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent transition-colors"
               >
                 Next
               </button>
@@ -460,27 +460,27 @@ export function AdminDashboard() {
         {hallsError && (
           <p className="text-sm text-red-600 font-medium">Error: {hallsError}</p>
         )}
-        <form onSubmit={createHall} className="mt-3 grid gap-2 md:grid-cols-3">
+        <form onSubmit={createHall} className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
           <input
             placeholder="Hall name"
             value={hallForm.name}
             onChange={(e) => setHallForm((prev) => ({ ...prev, name: e.target.value }))}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:outline-none transition-colors"
+            className="w-full md:w-auto flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
             required
           />
           <input
             placeholder="Capacity"
             value={hallForm.capacity}
             onChange={(e) => setHallForm((prev) => ({ ...prev, capacity: e.target.value }))}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:outline-none transition-colors"
+            className="w-full md:w-32 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
             type="number"
             min={1}
           />
-          <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">
+          <button className="w-full md:w-auto rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 whitespace-nowrap">
             Add Hall
           </button>
         </form>
-        <ul className="mt-4 grid gap-2 md:grid-cols-2">
+        <ul className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
           {halls.map((hall) => (
             <li
               key={hall.id}
@@ -597,17 +597,17 @@ export function AdminDashboard() {
               ))}
             </tbody>
           </table>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-col items-center gap-2 md:flex-row">
             <input
               placeholder="Search key (email or IP)"
               value={throttleSearch}
               onChange={(e) => setThrottleSearch(e.target.value)}
-              className="w-72 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:outline-none transition-colors"
+              className="w-full md:w-72 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
             />
             <button
               type="button"
               onClick={() => void loadThrottle(throttleSearch, 1)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full md:w-auto rounded border border-gray-400 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             >
               Search
             </button>
@@ -621,18 +621,18 @@ export function AdminDashboard() {
                 type="button"
                 disabled={throttlePage <= 1}
                 onClick={() => void loadThrottle(throttleSearch, throttlePage - 1)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-300"
+                className="rounded border border-gray-300 px-2 py-1 text-xs font-medium cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-100 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent transition-colors"
               >
                 Prev
               </button>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-600">
                 Page {throttlePage} / {Math.max(1, Math.ceil(throttleTotal / throttlePageSize))}
               </span>
               <button
                 type="button"
                 disabled={throttlePage * throttlePageSize >= throttleTotal}
                 onClick={() => void loadThrottle(throttleSearch, throttlePage + 1)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-300"
+                className="rounded border border-gray-300 px-2 py-1 text-xs font-medium cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-100 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent transition-colors"
               >
                 Next
               </button>
@@ -679,18 +679,18 @@ export function AdminDashboard() {
                 type="button"
                 disabled={auditPage <= 1}
                 onClick={() => void loadAudit(auditPage - 1)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-300"
+                className="rounded border border-gray-300 px-2 py-1 text-xs font-medium cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-100 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent transition-colors"
               >
                 Prev
               </button>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-600">
                 Page {auditPage} / {Math.max(1, Math.ceil(auditTotal / auditPageSize))}
               </span>
               <button
                 type="button"
                 disabled={auditPage * auditPageSize >= auditTotal}
                 onClick={() => void loadAudit(auditPage + 1)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-300"
+                className="rounded border border-gray-300 px-2 py-1 text-xs font-medium cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-blue-600 disabled:opacity-100 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300 disabled:hover:bg-transparent transition-colors"
               >
                 Next
               </button>

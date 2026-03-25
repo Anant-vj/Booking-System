@@ -32,19 +32,27 @@ export function HallAvailabilityCalendar({ halls }: Props) {
   );
 
   return (
-    <div className="overflow-hidden rounded-md border border-slate-200">
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin]}
-        initialView="timeGridWeek"
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,timeGridWeek,timeGridDay",
-        }}
-        height="auto"
-        events={events}
-        nowIndicator
-      />
+    <div className="overflow-x-auto rounded-md border border-slate-200 custom-calendar-wrapper">
+      <div className="min-w-[800px]">
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin]}
+          initialView="timeGridWeek"
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          }}
+          buttonText={{
+            today: "Today",
+            month: "Month",
+            week: "Week",
+            day: "Day",
+          }}
+          height="auto"
+          events={events}
+          nowIndicator
+        />
+      </div>
     </div>
   );
 }
