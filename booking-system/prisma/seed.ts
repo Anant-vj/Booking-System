@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { BookingStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 

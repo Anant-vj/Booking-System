@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { requireRole } from "@/lib/auth-helpers";
+import { ThrottleService } from "@/services/ThrottleService";
 import { prisma } from "@/lib/prisma";
+
+// key format is email::ip
+const keySchema = z.string().includes("::").min(5);
 
 export async function DELETE(
   _request: Request,
@@ -14,20 +19,16 @@ export async function DELETE(
   const { key } = await params;
   const decodedKey = decodeURIComponent(key);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.loginThrottleAudit.create({
-      data: {
-        throttleKey: decodedKey,
-        adminUserId: session.user.id,
-        action: "UNBLOCK",
-        note: "Manual unblock from admin dashboard",
-      },
-    });
+  const parsed = keySchema.safeParse(decodedKey);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid login throttle key format" }, { status: 400 });
+  }
 
-    await tx.loginThrottle.deleteMany({
-      where: { key: decodedKey },
-    });
-  });
-
-  return NextResponse.json({ success: true });
+  try {
+    await ThrottleService.unblock(decodedKey, session.user.id);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Failed to unblock login key:", err);
+    return NextResponse.json({ error: "Failed to process unblock" }, { status: 500 });
+  }
 }

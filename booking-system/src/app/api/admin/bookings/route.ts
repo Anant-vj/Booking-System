@@ -1,13 +1,15 @@
 import { BookingStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 import { requireRole } from "@/lib/auth-helpers";
-import { getApprovedConflictsCount } from "@/lib/booking-conflicts";
-import { prisma } from "@/lib/prisma";
+import { BookingService } from "@/services/BookingService";
 
-const statusFilterSchema = z.object({
+const querySchema = z.object({
   status: z.nativeEnum(BookingStatus).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 export async function GET(request: Request) {
@@ -15,40 +17,20 @@ export async function GET(request: Request) {
   if ("error" in result) return result.error;
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") ?? undefined;
-  const parsed = statusFilterSchema.safeParse({ status });
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid status filter" }, { status: 400 });
-  }
-  const where = parsed.data.status ? { status: parsed.data.status } : {};
-
-  const bookings = await prisma.booking.findMany({
-    where,
-    include: {
-      hall: true,
-      user: {
-        select: { id: true, name: true, email: true, role: true },
-      },
-    },
-    orderBy: [{ status: "asc" }, { startTime: "asc" }],
+  const parsed = querySchema.safeParse({
+    status: searchParams.get("status") ?? undefined,
+    page: searchParams.get("page") ?? undefined,
+    pageSize: searchParams.get("pageSize") ?? undefined,
   });
 
-  const withConflict = await Promise.all(
-    bookings.map(async (booking) => {
-      const conflictCount = await getApprovedConflictsCount({
-        hallId: booking.hallId,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        excludeBookingId: booking.id,
-      });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
+  }
 
-      return {
-        ...booking,
-        hasConflict: conflictCount > 0,
-        conflictCount,
-      };
-    })
-  );
-
-  return NextResponse.json(withConflict);
+  try {
+    const data = await BookingService.listBookingsWithConflicts(parsed.data);
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

@@ -68,18 +68,16 @@ model LoginThrottle {
   blockedUntil DateTime?
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
-  audits       LoginThrottleAudit[]
 }
 
 model LoginThrottleAudit {
   id          String   @id @default(uuid())
-  throttleKey String?
+  throttleKey String
   adminUserId String
   action      String
   note        String?
   createdAt   DateTime @default(now())
 
-  throttle    LoginThrottle? @relation(fields: [throttleKey], references: [key], onDelete: SetNull)
   adminUser   User           @relation(fields: [adminUserId], references: [id])
 
   @@index([throttleKey, createdAt])

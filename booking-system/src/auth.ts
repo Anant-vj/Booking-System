@@ -4,13 +4,8 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 
-import {
-  clearLoginFailures,
-  extractRequestIp,
-  isLoginBlocked,
-  registerLoginFailure,
-} from "@/lib/login-rate-limit";
 import { prisma } from "@/lib/prisma";
+import { ThrottleService } from "@/services/ThrottleService";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -34,10 +29,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials, request) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
-        const ip = extractRequestIp(request);
+        
+        // SECURE: Use ThrottleService to extract IP from trusted headers
+        const ip = ThrottleService.extractIp(request.headers);
 
         try {
-          const blocked = await isLoginBlocked(parsed.data.email, ip);
+          const blocked = await ThrottleService.isBlocked(parsed.data.email, ip);
           if (blocked) return null;
         } catch (error) {
           console.error("Rate-limit check failed", error);
@@ -46,9 +43,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email.toLowerCase() },
         });
+        
         if (!user) {
           try {
-            await registerLoginFailure(parsed.data.email, ip);
+            await ThrottleService.registerFailure(parsed.data.email, ip);
           } catch (error) {
             console.error("Failed to record login failure", error);
           }
@@ -58,7 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const isValid = await bcrypt.compare(parsed.data.password, user.password);
         if (!isValid) {
           try {
-            await registerLoginFailure(parsed.data.email, ip);
+            await ThrottleService.registerFailure(parsed.data.email, ip);
           } catch (error) {
             console.error("Failed to record login failure", error);
           }
@@ -66,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         try {
-          await clearLoginFailures(parsed.data.email, ip);
+          await ThrottleService.clearFailures(parsed.data.email, ip);
         } catch (error) {
           console.error("Failed to clear login failures", error);
         }

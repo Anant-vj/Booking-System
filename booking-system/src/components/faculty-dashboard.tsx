@@ -115,21 +115,21 @@ export function FacultyDashboard() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-600">Loading dashboard...</p>;
+    return <p className="text-sm text-gray-600">Loading dashboard...</p>;
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">New Booking Request</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
+        <p className="mt-1 text-sm text-gray-500">
           Requests are saved as pending. Only approved bookings block slots.
         </p>
         <form onSubmit={submitBooking} className="mt-4 grid gap-3">
-          <label className="grid gap-1 text-sm">
+          <label className="grid gap-1 text-sm text-gray-700">
             Hall
             <select
-              className="rounded-md border border-slate-300 px-3 py-2"
+              className="rounded-md border border-gray-300 px-3 py-2 text-gray-800 focus:border-blue-400 focus:outline-none"
               value={form.hallId}
               onChange={(e) => setForm((prev) => ({ ...prev, hallId: e.target.value }))}
               required
@@ -141,30 +141,30 @@ export function FacultyDashboard() {
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm">
+          <label className="grid gap-1 text-sm text-gray-700">
             Start Time
             <input
               type="datetime-local"
-              className="rounded-md border border-slate-300 px-3 py-2"
+              className="rounded-md border border-gray-300 px-3 py-2 text-gray-800 focus:border-blue-400 focus:outline-none"
               value={form.startTime}
               onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
               required
             />
           </label>
-          <label className="grid gap-1 text-sm">
+          <label className="grid gap-1 text-sm text-gray-700">
             End Time
             <input
               type="datetime-local"
-              className="rounded-md border border-slate-300 px-3 py-2"
+              className="rounded-md border border-gray-300 px-3 py-2 text-gray-800 focus:border-blue-400 focus:outline-none"
               value={form.endTime}
               onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
               required
             />
           </label>
-          <label className="grid gap-1 text-sm">
+          <label className="grid gap-1 text-sm text-gray-700">
             Purpose (optional)
             <textarea
-              className="min-h-20 rounded-md border border-slate-300 px-3 py-2"
+              className="min-h-20 rounded-md border border-gray-300 px-3 py-2 text-gray-800 focus:border-blue-400 focus:outline-none"
               value={form.purpose}
               onChange={(e) => setForm((prev) => ({ ...prev, purpose: e.target.value }))}
             />
@@ -181,11 +181,11 @@ export function FacultyDashboard() {
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">My Bookings</h2>
+        <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left">
+              <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
                 <th className="py-2">Hall</th>
                 <th className="py-2">Time</th>
                 <th className="py-2">Status</th>
@@ -195,11 +195,24 @@ export function FacultyDashboard() {
             <tbody>
               {bookings.map((booking) => (
                 <tr key={booking.id} className="border-b border-slate-100">
-                  <td className="py-2">{booking.hall.name}</td>
-                  <td className="py-2">
+                  <td className="py-2 text-gray-800 font-medium">{booking.hall.name}</td>
+                  <td className="py-2 text-gray-700">
                     {formatDateTime(booking.startTime)} - {formatDateTime(booking.endTime)}
                   </td>
-                  <td className="py-2">{booking.status}</td>
+                  <td className="py-2">
+                    {booking.status === "APPROVED" && (
+                      <span className="rounded bg-green-50 px-2 py-1 text-green-700 font-medium">APPROVED</span>
+                    )}
+                    {booking.status === "PENDING" && (
+                      <span className="rounded bg-yellow-50 px-2 py-1 text-yellow-700 font-medium">PENDING</span>
+                    )}
+                    {booking.status === "REJECTED" && (
+                      <span className="rounded bg-red-50 px-2 py-1 text-red-700 font-medium">REJECTED</span>
+                    )}
+                    {booking.status === "CANCELLED" && (
+                      <span className="rounded bg-gray-50 px-2 py-1 text-gray-600 font-medium">CANCELLED</span>
+                    )}
+                  </td>
                   <td className="py-2">
                     {booking.status !== "CANCELLED" && booking.status !== "REJECTED" ? (
                       <button
@@ -210,7 +223,7 @@ export function FacultyDashboard() {
                         Cancel
                       </button>
                     ) : (
-                      <span className="text-slate-400">-</span>
+                      <span className="text-gray-400">-</span>
                     )}
                   </td>
                 </tr>
@@ -221,8 +234,8 @@ export function FacultyDashboard() {
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
-        <h2 className="text-lg font-semibold">Hall Availability (Approved Only)</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="text-lg font-semibold text-gray-900">Hall Availability (Approved Only)</h2>
+        <p className="mt-1 text-sm text-gray-500">
           This acts as a lightweight calendar view of occupied slots per hall.
         </p>
         <div className="mt-4">
@@ -231,7 +244,7 @@ export function FacultyDashboard() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {upcomingApproved.map((hall) => (
             <div key={hall.id} className="rounded-md border border-slate-200 p-3">
-              <h3 className="font-medium">{hall.name}</h3>
+              <h3 className="font-semibold text-gray-900">{hall.name}</h3>
               {hall.bookings.length === 0 ? (
                 <p className="mt-2 text-sm text-green-700">No approved bookings yet.</p>
               ) : (
@@ -239,7 +252,7 @@ export function FacultyDashboard() {
                   {hall.bookings.map((slot) => (
                     <li key={slot.id} className="rounded bg-slate-50 p-2">
                       <div>{formatDateTime(slot.startTime)} - {formatDateTime(slot.endTime)}</div>
-                      <div className="text-slate-600">{slot.purpose ?? "No purpose provided"}</div>
+                      <div className="text-gray-600">{slot.purpose ?? "No purpose provided"}</div>
                     </li>
                   ))}
                 </ul>

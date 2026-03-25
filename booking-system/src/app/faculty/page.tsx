@@ -14,8 +14,8 @@ export default async function FacultyPage() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-6 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-xl font-semibold">Faculty Dashboard</h1>
-            <p className="text-sm text-slate-600">{session.user.email}</p>
+            <h1 className="text-xl font-semibold text-gray-900">Faculty Dashboard</h1>
+            <p className="text-sm text-gray-500">{session.user.email}</p>
           </div>
           <LogoutButton />
         </header>

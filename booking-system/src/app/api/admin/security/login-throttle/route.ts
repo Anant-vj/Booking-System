@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireRole } from "@/lib/auth-helpers";
-import { prisma } from "@/lib/prisma";
+import { ThrottleService } from "@/services/ThrottleService";
 
 const querySchema = z.object({
   blockedOnly: z.enum(["true", "false"]).optional(),
   q: z.string().trim().max(120).optional(),
-  page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 export async function GET(request: Request) {
@@ -26,24 +26,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
   }
 
-  const blockedOnly = parsed.data.blockedOnly !== "false";
-  const query = parsed.data.q?.toLowerCase();
-  const page = parsed.data.page ?? 1;
-  const pageSize = parsed.data.pageSize ?? 20;
-  const where = {
-    ...(blockedOnly ? { blockedUntil: { gt: new Date() } } : {}),
-    ...(query ? { key: { contains: query, mode: "insensitive" as const } } : {}),
-  };
-  const skip = (page - 1) * pageSize;
+  const { q, page, pageSize, blockedOnly: blockedOnlyStr } = parsed.data;
+  const blockedOnly = blockedOnlyStr !== "false";
 
-  const [items, total] = await Promise.all([
-    prisma.loginThrottle.findMany({
-      where,
-      orderBy: [{ blockedUntil: "desc" }, { attempts: "desc" }],
-      skip,
-      take: pageSize,
-    }),
-    prisma.loginThrottle.count({ where }),
-  ]);
-  return NextResponse.json({ items, total, page, pageSize });
+  try {
+    const data = await ThrottleService.listThrottles({ q, page, pageSize, blockedOnly });
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
