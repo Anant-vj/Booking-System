@@ -20,6 +20,27 @@ export default async function AdminPage() {
           <LogoutButton />
         </header>
         <AdminDashboard />
+        <footer className="mt-6 mb-2 text-center text-sm text-gray-400">
+          <span className="text-pink-400 mr-1">✦</span>
+          Crafted by{" "}
+          <a
+            href="https://www.linkedin.com/in/anantharamanvj/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-gray-600 transition-colors duration-150 hover:text-blue-600 hover:underline cursor-pointer"
+          >
+            Anantha Raman V J
+          </a>{" "}
+          &{" "}
+          <a
+            href="https://www.linkedin.com/in/seshan-j-956952268/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-gray-600 transition-colors duration-150 hover:text-blue-600 hover:underline cursor-pointer"
+          >
+            Seshann J
+          </a>
+        </footer>
       </div>
     </main>
   );

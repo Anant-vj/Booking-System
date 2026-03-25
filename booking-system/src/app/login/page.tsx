@@ -59,6 +59,27 @@ export default async function LoginPage(props: {
         </form>
         {error ? <p className="mt-3 text-sm text-red-600">Login failed: {error}</p> : null}
       </div>
+      <footer className="absolute bottom-4 text-center text-sm text-gray-400">
+        <span className="text-pink-400 mr-1">✦</span>
+        Crafted by{" "}
+        <a
+          href="https://www.linkedin.com/in/anantharamanvj/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-gray-600 transition-colors duration-150 hover:text-blue-600 hover:underline cursor-pointer"
+        >
+          Anantha Raman V J
+        </a>{" "}
+        &{" "}
+        <a
+          href="https://www.linkedin.com/in/seshan-j-956952268/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-gray-600 transition-colors duration-150 hover:text-blue-600 hover:underline cursor-pointer"
+        >
+          Seshann J
+        </a>
+      </footer>
     </main>
   );
 }
