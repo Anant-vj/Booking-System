@@ -22,7 +22,7 @@ export class BookingService {
             select: { id: true, name: true, email: true, role: true },
           },
         },
-        orderBy: [{ status: "asc" }, { startTime: "asc" }],
+        orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
       }),
