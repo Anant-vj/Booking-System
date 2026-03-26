@@ -175,9 +175,9 @@ export function FacultyDashboard() {
 
       {/* Tab Content */}
       {activeTab === "bookings" && (
-        <div className="flex flex-col gap-5 lg:flex-row">
+        <div className="flex flex-col w-full gap-5 lg:flex-row">
           {/* New Booking Form */}
-          <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+          <section className="w-full lg:w-1/2 flex flex-col rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
             <p className="mt-1 text-sm text-slate-700 font-medium">
               Requests are saved as pending. Only approved bookings block slots.
@@ -276,10 +276,10 @@ export function FacultyDashboard() {
           </section>
 
           {/* My Bookings */}
-          <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+          <section className="w-full lg:w-1/2 flex flex-col min-w-0 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full text-sm">
+            <div className="mt-4 w-full overflow-x-auto">
+              <table className="min-w-[800px] w-full text-sm">
                 <thead className="bg-slate-200 text-left text-xs font-black text-slate-900 uppercase tracking-wider">
                   <tr className="border-b-2 border-slate-300 whitespace-nowrap">
                     <th className="py-3 px-4">Hall</th>
