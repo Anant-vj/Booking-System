@@ -36,7 +36,7 @@ export default async function AdminPage() {
             rel="noopener noreferrer"
             className="font-medium text-gray-600 transition-colors duration-150 hover:text-blue-600 hover:underline cursor-pointer"
           >
-            Seshann J
+            Seshan J
           </a>
         </footer>
       </div>

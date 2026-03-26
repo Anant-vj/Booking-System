@@ -5,951 +5,557 @@ import { formatDateTime } from "@/lib/format";
 import { Pagination } from "@/components/pagination";
 import { HallAvailabilityCalendar } from "@/components/hall-availability-calendar";
 
+type User = { id: string; name: string | null; email: string | null };
 type Hall = { id: string; name: string; capacity: number | null };
 type BookingStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 type Booking = {
   id: string;
-  hallId: string;
   status: BookingStatus;
   startTime: string;
   endTime: string;
   purpose: string | null;
+  numberOfParticipants: number;
   createdAt: string;
-  hasConflict: boolean;
-  conflictCount: number;
+  user: User;
   hall: Hall;
-  user: { id: string; name: string; email: string; role: "ADMIN" | "FACULTY" };
 };
-type LoginThrottle = {
-  key: string;
-  attempts: number;
-  windowStart: string;
-  blockedUntil: string | null;
-};
-type LoginThrottleAudit = {
+type ThrottleAudit = {
   id: string;
-  throttleKey: string | null;
+  throttleKey: string;
   action: string;
   note: string | null;
   createdAt: string;
-  adminUser: { id: string; name: string; email: string };
+  adminUser: { name: string | null; email: string | null };
 };
-type PaginatedResponse<T> = {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  error?: string;
-};
-type ReportStats = {
-  total: number;
-  PENDING: number;
-  APPROVED: number;
-  REJECTED: number;
-  CANCELLED: number;
-};
+
+type ReportPeriod = "today" | "week" | "month" | "year" | "all";
+type ReportStats = { total: number; PENDING: number; APPROVED: number; REJECTED: number; CANCELLED: number };
 type ReportsData = {
   today: ReportStats;
   thisWeek: ReportStats;
   thisMonth: ReportStats;
-};
-type AvailabilityHall = Hall & {
-  bookings: Array<{
-    id: string;
-    startTime: string;
-    endTime: string;
-    purpose: string | null;
-    user: { name: string | null; email: string | null };
-  }>;
+  previewBookings?: Booking[];
 };
 
-const STATUS_OPTIONS: Array<BookingStatus | "ALL"> = [
-  "ALL",
-  "PENDING",
-  "APPROVED",
-  "REJECTED",
-  "CANCELLED",
-];
-
-type TabId = "reports" | "calendar" | "bookings" | "security";
+type TabId = "bookings" | "calendar" | "reports" | "security";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "reports", label: "Reports", icon: "📊" },
-  { id: "calendar", label: "Calendar", icon: "📅" },
   { id: "bookings", label: "Bookings", icon: "📋" },
+  { id: "calendar", label: "Calendar", icon: "📅" },
+  { id: "reports", label: "Reports", icon: "📊" },
   { id: "security", label: "Security", icon: "🔐" },
 ];
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<TabId>("reports");
-  const [message, setMessage] = useState("");
-
-  // Auto-dismiss message
-  useEffect(() => {
-    if (!message) return;
-    const t = setTimeout(() => setMessage(""), 4000);
-    return () => clearTimeout(t);
-  }, [message]);
-
-  return (
-    <div className="grid gap-5">
-      {/* Tab Navigation */}
-      <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm overflow-x-auto">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all ${
-              activeTab === tab.id
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-            }`}
-          >
-            <span>{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Tab Content */}
-      {activeTab === "reports" && <ReportsSection />}
-      {activeTab === "calendar" && <CalendarSection />}
-      {activeTab === "bookings" && (
-        <BookingsSection message={message} setMessage={setMessage} />
-      )}
-      {activeTab === "security" && (
-        <SecuritySection message={message} setMessage={setMessage} />
-      )}
-
-      {/* Toast */}
-      {message ? (
-        <p className="fixed bottom-4 right-4 bg-white border border-slate-200 p-4 shadow-lg rounded-lg text-sm text-blue-700 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {message}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   REPORTS SECTION
-   ═══════════════════════════════════════════ */
-
-function ReportsSection() {
-  const [reports, setReports] = useState<ReportsData | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>("bookings");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/admin/reports");
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load reports");
-        setReports(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    void load();
-  }, []);
-
-  if (loading) {
-    return (
-      <section className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex items-center justify-center gap-2">
-          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-gray-500">Loading reports…</span>
-        </div>
-      </section>
-    );
-  }
-
-  if (error || !reports) {
-    return (
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-red-600 font-medium">Error: {error}</p>
-      </section>
-    );
-  }
-
-  const cards: { label: string; icon: string; stats: ReportStats }[] = [
-    { label: "Today", icon: "📆", stats: reports.today },
-    { label: "This Week", icon: "📅", stats: reports.thisWeek },
-    { label: "This Month", icon: "🗓️", stats: reports.thisMonth },
-  ];
-
-  return (
-    <section className="grid gap-4 md:grid-cols-3">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl">{card.icon}</span>
-            <h3 className="text-base font-semibold text-gray-900">{card.label}</h3>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{card.stats.total}</p>
-          <p className="text-xs text-gray-500 mt-1">Total Bookings</p>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <StatBadge label="Approved" count={card.stats.APPROVED} color="green" />
-            <StatBadge label="Pending" count={card.stats.PENDING} color="yellow" />
-            <StatBadge label="Rejected" count={card.stats.REJECTED} color="red" />
-            <StatBadge label="Cancelled" count={card.stats.CANCELLED} color="gray" />
-          </div>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function StatBadge({
-  label,
-  count,
-  color,
-}: {
-  label: string;
-  count: number;
-  color: "green" | "yellow" | "red" | "gray";
-}) {
-  const colors = {
-    green: "bg-green-50 text-green-700",
-    yellow: "bg-yellow-50 text-yellow-700",
-    red: "bg-red-50 text-red-700",
-    gray: "bg-gray-50 text-gray-600",
-  };
-  return (
-    <div className={`rounded-md px-2 py-1.5 text-center ${colors[color]}`}>
-      <p className="text-lg font-bold">{count}</p>
-      <p className="text-[10px] font-medium uppercase tracking-wide">{label}</p>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   CALENDAR SECTION
-   ═══════════════════════════════════════════ */
-
-function CalendarSection() {
-  const [availability, setAvailability] = useState<AvailabilityHall[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/halls/availability");
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load availability");
-        setAvailability(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    void load();
-  }, []);
-
-  if (loading) {
-    return (
-      <section className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex items-center justify-center gap-2">
-          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-gray-500">Loading calendar…</span>
-        </div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-red-600 font-medium">Error: {error}</p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">Hall Availability Calendar</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Shows all approved bookings across halls. Switch between month, week, and day views.
-      </p>
-      <HallAvailabilityCalendar halls={availability} />
-    </section>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   BOOKINGS SECTION
-   ═══════════════════════════════════════════ */
-
-function BookingsSection({
-  message,
-  setMessage,
-}: {
-  message: string;
-  setMessage: (m: string) => void;
-}) {
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "ALL">("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Bookings State
+  // Data states
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [allHallsWithBookings, setAllHallsWithBookings] = useState<any[]>([]);
+  const [reports, setReports] = useState<ReportsData | null>(null);
+  const [throttleAudits, setThrottleAudits] = useState<ThrottleAudit[]>([]);
+
+  // Pagination & Filtering
   const [bookingPage, setBookingPage] = useState(1);
-  const bookingPageSize = 8;
-  const [bookingTotal, setBookingTotal] = useState(0);
-  const [bookingLoading, setBookingLoading] = useState(true);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-  const bookingsAbortRef = useRef<AbortController | null>(null);
+  const [bookingFilter, setBookingFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
+  const ITEMS_PER_PAGE = 8;
 
-  // Halls State
-  const [halls, setHalls] = useState<Hall[]>([]);
-  const [hallsLoading, setHallsLoading] = useState(true);
-  const [hallsError, setHallsError] = useState<string | null>(null);
-  const [hallForm, setHallForm] = useState({ name: "", capacity: "" });
-  const [editHallId, setEditHallId] = useState<string | null>(null);
-  const [editHallForm, setEditHallForm] = useState({ name: "", capacity: "" });
-  const hallsAbortRef = useRef<AbortController | null>(null);
+  // Reports Preview
+  const [reportPeriod, setReportPeriod] = useState<"today" | "week" | "month">("week");
+  const [printing, setPrinting] = useState(false);
+  const [printPeriod, setPrintPeriod] = useState<ReportPeriod>("week");
+  const [printData, setPrintData] = useState<Booking[]>([]);
 
-  const loadBookings = useCallback(
-    async (filter = statusFilter, page = bookingPage) => {
-      bookingsAbortRef.current?.abort();
-      const controller = new AbortController();
-      bookingsAbortRef.current = controller;
-
-      setBookingLoading(true);
-      setBookingError(null);
-      try {
-        const url =
-          filter === "ALL"
-            ? `/api/admin/bookings?page=${page}&pageSize=${bookingPageSize}`
-            : `/api/admin/bookings?status=${filter}&page=${page}&pageSize=${bookingPageSize}`;
-        const res = await fetch(url, { signal: controller.signal });
-        const data: PaginatedResponse<Booking> = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load bookings");
-        setBookings(data.items);
-        setBookingTotal(data.total);
-        setBookingPage(data.page);
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
-        setBookingError(err.message);
-        setMessage(err.message);
-      } finally {
-        if (!controller.signal.aborted) setBookingLoading(false);
-      }
-    },
-    [statusFilter, bookingPage, setMessage]
-  );
-
-  const loadHalls = useCallback(async () => {
-    hallsAbortRef.current?.abort();
-    const controller = new AbortController();
-    hallsAbortRef.current = controller;
-
-    setHallsLoading(true);
-    setHallsError(null);
+  const loadData = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/halls", { signal: controller.signal });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load halls");
-      setHalls(data);
-    } catch (err: any) {
-      if (err.name === "AbortError") return;
-      setHallsError(err.message);
-      setMessage(err.message);
-    } finally {
-      if (!controller.signal.aborted) setHallsLoading(false);
+      const [bookingsRes, availabilityRes, reportsRes, auditRes] = await Promise.all([
+        fetch("/api/admin/bookings"),
+        fetch("/api/halls/availability"),
+        fetch(`/api/admin/reports?period=${reportPeriod}`),
+        fetch("/api/admin/throttle-audits"),
+      ]);
+
+      if (bookingsRes.ok) setBookings(await bookingsRes.json());
+      if (availabilityRes.ok) setAllHallsWithBookings(await availabilityRes.json());
+      if (reportsRes.ok) setReports(await reportsRes.json());
+      if (auditRes.ok) setThrottleAudits(await auditRes.json());
+    } catch (e) {
+      console.error(e);
     }
-  }, [setMessage]);
+    setLoading(false);
+  }, [reportPeriod]);
 
   useEffect(() => {
-    loadBookings();
-    loadHalls();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadData();
+  }, [loadData]);
 
-  async function applyDecision(id: string, action: "APPROVE" | "REJECT") {
+
+  // Bookings Derived State
+  const filteredBookings = bookings.filter((b) => bookingFilter === "ALL" || b.status === bookingFilter);
+  const totalBookingPages = Math.max(1, Math.ceil(filteredBookings.length / ITEMS_PER_PAGE));
+  const paginatedBookings = filteredBookings.slice(
+    (bookingPage - 1) * ITEMS_PER_PAGE,
+    bookingPage * ITEMS_PER_PAGE
+  );
+
+  async function updateStatus(id: string, status: "APPROVED" | "REJECTED") {
+    const res = await fetch(`/api/admin/bookings/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) void loadData();
+    else alert("Failed to update booking status.");
+  }
+
+  async function handlePrintRequest(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPrinting(true);
     try {
-      const response = await fetch(`/api/admin/bookings/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error ?? "Action failed");
-        return;
+      const res = await fetch(`/api/admin/reports?period=${printPeriod}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPrintData(data.previewBookings || []);
+        // Allow state to render the print table, then trigger print
+        setTimeout(() => {
+          window.print();
+          setPrinting(false);
+        }, 500);
       }
-      setMessage(`Booking ${action === "APPROVE" ? "approved" : "rejected"} successfully.`);
-      void loadBookings();
-    } catch (err: any) {
-      setMessage(err.message);
+    } catch {
+      alert("Failed to fetch print data");
+      setPrinting(false);
     }
   }
 
-  async function createHall(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
-      const payload = {
-        name: hallForm.name,
-        capacity: hallForm.capacity ? Number(hallForm.capacity) : null,
-      };
-      const response = await fetch("/api/halls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error ?? "Failed to create hall");
-        return;
-      }
-      setHallForm({ name: "", capacity: "" });
-      setMessage("Hall created.");
-      void loadHalls();
-    } catch (err: any) {
-      setMessage(err.message);
-    }
-  }
-
-  async function deleteHall(id: string) {
-    try {
-      const response = await fetch(`/api/halls/${id}`, { method: "DELETE" });
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error ?? "Failed to delete hall");
-        return;
-      }
-      setMessage("Hall deleted.");
-      void loadHalls();
-    } catch (err: any) {
-      setMessage(err.message);
-    }
-  }
-
-  async function updateHall(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editHallId) return;
-    try {
-      const payload = {
-        name: editHallForm.name.trim(),
-        capacity: editHallForm.capacity ? Number(editHallForm.capacity) : null,
-      };
-      const response = await fetch(`/api/halls/${editHallId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error ?? "Failed to update hall");
-        return;
-      }
-      setEditHallId(null);
-      setEditHallForm({ name: "", capacity: "" });
-      setMessage("Hall updated.");
-      void loadHalls();
-    } catch (err: any) {
-      setMessage(err.message);
-    }
-  }
-
-  const filteredBookings = bookings.filter((booking) => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return true;
+  if (loading && !bookings.length) {
     return (
-      booking.user.name.toLowerCase().includes(query) ||
-      booking.user.email.toLowerCase().includes(query) ||
-      booking.hall.name.toLowerCase().includes(query) ||
-      (booking.purpose ?? "").toLowerCase().includes(query)
+      <div className="flex h-64 items-center justify-center">
+        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <span className="ml-3 text-sm text-gray-500 font-medium">Loading command center…</span>
+      </div>
     );
-  });
-
-  const bookingTotalPages = Math.ceil(bookingTotal / bookingPageSize);
-
-  return (
-    <div className="grid gap-5">
-      {/* Bookings Table */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm relative">
-        {bookingLoading && (
-          <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-lg">
-            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">All Bookings</h2>
-          {bookingError && (
-            <p className="text-sm text-red-600 font-medium">Error: {bookingError}</p>
-          )}
-          <div className="flex flex-col gap-2 md:flex-row">
-            <input
-              placeholder="Search faculty/hall/purpose"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
-            />
-            <select
-              className="w-full md:w-48 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none transition-colors"
-              value={statusFilter}
-              onChange={(e) => {
-                const next = e.target.value as BookingStatus | "ALL";
-                setStatusFilter(next);
-                void loadBookings(next, 1);
-              }}
-            >
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
-                <th className="py-2 pr-3">Faculty</th>
-                <th className="py-2 pr-3">Hall</th>
-                <th className="py-2 pr-3">Purpose</th>
-                <th className="py-2 pr-3">Time</th>
-                <th className="py-2 pr-3">Submitted</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2 pr-3">Conflict</th>
-                <th className="py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBookings.map((booking) => (
-                <tr key={booking.id} className="border-b border-slate-100">
-                  <td className="py-2.5 pr-3 text-gray-800 font-medium">{booking.user.name}</td>
-                  <td className="py-2.5 pr-3 text-gray-800">{booking.hall.name}</td>
-                  <td className="py-2.5 pr-3 text-gray-700 max-w-[160px]">
-                    <span className="block truncate" title={booking.purpose ?? "N/A"}>
-                      {booking.purpose || <span className="text-gray-400 italic">No purpose</span>}
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-3 text-gray-700 whitespace-nowrap text-xs">
-                    {formatDateTime(booking.startTime)}
-                    <br />
-                    {formatDateTime(booking.endTime)}
-                  </td>
-                  <td className="py-2.5 pr-3 text-gray-500 whitespace-nowrap text-xs">
-                    {formatDateTime(booking.createdAt)}
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <StatusBadge status={booking.status} />
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    {booking.hasConflict ? (
-                      <span className="rounded bg-red-50 px-2 py-1 text-red-600 font-medium text-xs">
-                        Yes ({booking.conflictCount})
-                      </span>
-                    ) : (
-                      <span className="font-medium text-green-600 text-xs">No</span>
-                    )}
-                  </td>
-                  <td className="py-2.5">
-                    {booking.status === "PENDING" ? (
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => void applyDecision(booking.id, "APPROVE")}
-                          className="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700 transition-colors"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void applyDecision(booking.id, "REJECT")}
-                          className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700 transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredBookings.length === 0 && (
-            <p className="text-center py-8 text-sm text-gray-500">No bookings match your filters.</p>
-          )}
-          <Pagination
-            page={bookingPage}
-            totalPages={bookingTotalPages}
-            onPageChange={(p) => void loadBookings(statusFilter, p)}
-          />
-        </div>
-      </section>
-
-      {/* Hall Management */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm relative">
-        {hallsLoading && (
-          <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-lg">
-            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-        <h2 className="text-lg font-semibold text-gray-900">Hall Management</h2>
-        {hallsError && (
-          <p className="text-sm text-red-600 font-medium">Error: {hallsError}</p>
-        )}
-        <form onSubmit={createHall} className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
-          <input
-            placeholder="Hall name"
-            value={hallForm.name}
-            onChange={(e) => setHallForm((prev) => ({ ...prev, name: e.target.value }))}
-            className="w-full md:w-auto flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
-            required
-          />
-          <input
-            placeholder="Capacity"
-            value={hallForm.capacity}
-            onChange={(e) => setHallForm((prev) => ({ ...prev, capacity: e.target.value }))}
-            className="w-full md:w-32 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
-            type="number"
-            min={1}
-          />
-          <button className="w-full md:w-auto rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 whitespace-nowrap transition-colors">
-            Add Hall
-          </button>
-        </form>
-        <ul className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
-          {halls.map((hall) => (
-            <li
-              key={hall.id}
-              className="flex items-center justify-between rounded-md border border-slate-200 p-3"
-            >
-              <span className="text-gray-800 font-medium">
-                {hall.name} {hall.capacity ? `(${hall.capacity})` : ""}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditHallId(hall.id);
-                    setEditHallForm({
-                      name: hall.name,
-                      capacity: hall.capacity ? String(hall.capacity) : "",
-                    });
-                  }}
-                  className="rounded border border-gray-300 px-2 py-1 text-gray-700 hover:bg-gray-50 transition-colors text-xs"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void deleteHall(hall.id)}
-                  className="rounded border border-red-300 px-2 py-1 text-red-600 hover:bg-red-50 transition-colors text-xs"
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {editHallId ? (
-          <form
-            onSubmit={updateHall}
-            className="mt-4 grid gap-2 rounded-md border border-slate-200 p-3 md:grid-cols-3"
-          >
-            <input
-              placeholder="Hall name"
-              value={editHallForm.name}
-              onChange={(e) => setEditHallForm((prev) => ({ ...prev, name: e.target.value }))}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:outline-none transition-colors"
-              required
-            />
-            <input
-              placeholder="Capacity"
-              value={editHallForm.capacity}
-              onChange={(e) => setEditHallForm((prev) => ({ ...prev, capacity: e.target.value }))}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:outline-none transition-colors"
-              type="number"
-              min={1}
-            />
-            <div className="flex gap-2">
-              <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 transition-colors">
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditHallId(null);
-                  setEditHallForm({ name: "", capacity: "" });
-                }}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
-      </section>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   SECURITY SECTION
-   ═══════════════════════════════════════════ */
-
-function SecuritySection({
-  message,
-  setMessage,
-}: {
-  message: string;
-  setMessage: (m: string) => void;
-}) {
-  // Throttle State
-  const [loginThrottles, setLoginThrottles] = useState<LoginThrottle[]>([]);
-  const [throttleSearch, setThrottleSearch] = useState("");
-  const [throttlePage, setThrottlePage] = useState(1);
-  const throttlePageSize = 8;
-  const [throttleTotal, setThrottleTotal] = useState(0);
-  const [throttleLoading, setThrottleLoading] = useState(true);
-  const [throttleError, setThrottleError] = useState<string | null>(null);
-  const throttleAbortRef = useRef<AbortController | null>(null);
-
-  // Audit State
-  const [throttleAudits, setThrottleAudits] = useState<LoginThrottleAudit[]>([]);
-  const [auditPage, setAuditPage] = useState(1);
-  const auditPageSize = 8;
-  const [auditTotal, setAuditTotal] = useState(0);
-  const [auditLoading, setAuditLoading] = useState(true);
-  const [auditError, setAuditError] = useState<string | null>(null);
-  const auditAbortRef = useRef<AbortController | null>(null);
-
-  const loadThrottle = useCallback(
-    async (query = throttleSearch, page = throttlePage) => {
-      throttleAbortRef.current?.abort();
-      const controller = new AbortController();
-      throttleAbortRef.current = controller;
-
-      setThrottleLoading(true);
-      setThrottleError(null);
-      try {
-        const url = `/api/admin/security/login-throttle?q=${encodeURIComponent(
-          query
-        )}&page=${page}&pageSize=${throttlePageSize}`;
-        const res = await fetch(url, { signal: controller.signal });
-        const data: PaginatedResponse<LoginThrottle> = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load throttle data");
-        setLoginThrottles(data.items);
-        setThrottleTotal(data.total);
-        setThrottlePage(data.page);
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
-        setThrottleError(err.message);
-        setMessage(err.message);
-      } finally {
-        if (!controller.signal.aborted) setThrottleLoading(false);
-      }
-    },
-    [throttleSearch, throttlePage, setMessage]
-  );
-
-  const loadAudit = useCallback(
-    async (page = auditPage) => {
-      auditAbortRef.current?.abort();
-      const controller = new AbortController();
-      auditAbortRef.current = controller;
-
-      setAuditLoading(true);
-      setAuditError(null);
-      try {
-        const url = `/api/admin/security/login-throttle/audit?page=${page}&pageSize=${auditPageSize}`;
-        const res = await fetch(url, { signal: controller.signal });
-        const data: PaginatedResponse<LoginThrottleAudit> = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load audit logs");
-        setThrottleAudits(data.items);
-        setAuditTotal(data.total);
-        setAuditPage(data.page);
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
-        setAuditError(err.message);
-        setMessage(err.message);
-      } finally {
-        if (!controller.signal.aborted) setAuditLoading(false);
-      }
-    },
-    [auditPage, setMessage]
-  );
-
-  useEffect(() => {
-    loadThrottle();
-    loadAudit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function unblockLoginKey(key: string) {
-    try {
-      const response = await fetch(
-        `/api/admin/security/login-throttle/${encodeURIComponent(key)}`,
-        { method: "DELETE" }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error ?? "Failed to unblock login key");
-        return;
-      }
-      setMessage("Login key unblocked.");
-      void loadThrottle();
-      void loadAudit();
-    } catch (err: any) {
-      setMessage(err.message);
-    }
   }
 
-  const throttleTotalPages = Math.ceil(throttleTotal / throttlePageSize);
-  const auditTotalPages = Math.ceil(auditTotal / auditPageSize);
-
   return (
-    <div className="grid gap-5">
-      {/* Login Throttle */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm relative">
-        {throttleLoading && (
-          <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-lg">
-            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-        <h2 className="text-lg font-semibold text-gray-900">Login Throttle</h2>
-        {throttleError && (
-          <p className="text-sm text-red-600 font-medium mb-2">Error: {throttleError}</p>
-        )}
-        <p className="mt-1 text-sm text-gray-500">
-          Shows currently blocked login keys by email + IP. Use unblock only for verified users.
-        </p>
+    <>
+      {/* 
+        This div wraps the normal application UI. It gets hidden via
+        print:hidden when the user prints the report.
+      */}
+      <div className="print:hidden space-y-6 mt-6">
 
-        <div className="mt-3 flex flex-col items-stretch gap-2 md:flex-row md:items-center">
-          <input
-            placeholder="Search key (email or IP)"
-            value={throttleSearch}
-            onChange={(e) => setThrottleSearch(e.target.value)}
-            className="w-full md:w-72 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-500 focus:border-blue-400 focus:outline-none transition-colors"
-          />
-          <button
-            type="button"
-            onClick={() => void loadThrottle(throttleSearch, 1)}
-            className="w-full md:w-auto rounded border border-gray-400 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            Search
-          </button>
-        </div>
+        {/* Desktop & Mobile Tab Navigation */}
+        <nav className="flex gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium whitespace-nowrap transition-all ${
+                activeTab === tab.id
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                  : "text-gray-600 hover:bg-slate-50 hover:text-gray-900"
+              }`}
+            >
+              <span className="text-lg">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
-                <th className="py-2">Key (email::ip)</th>
-                <th className="py-2">Attempts</th>
-                <th className="py-2">Blocked Until</th>
-                <th className="py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loginThrottles.map((row) => (
-                <tr key={row.key} className="border-b border-slate-100">
-                  <td className="py-2 font-mono text-xs">{row.key}</td>
-                  <td className="py-2">{row.attempts}</td>
-                  <td className="py-2">
-                    {row.blockedUntil ? formatDateTime(row.blockedUntil) : "-"}
-                  </td>
-                  <td className="py-2">
+        {/* 📋 BOOKINGS SECTION */}
+        {activeTab === "bookings" && (
+          <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
+            <div className="border-b border-slate-200 p-5 sm:p-6 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Manage Bookings</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Review and act upon faculty hall requests. Order: Latest first.
+                  </p>
+                </div>
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+                  {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map((filter) => (
                     <button
-                      type="button"
-                      onClick={() => void unblockLoginKey(row.key)}
-                      className="rounded border border-amber-300 px-2 py-1 text-amber-700 hover:bg-amber-50 text-xs transition-colors"
+                      key={filter}
+                      onClick={() => {
+                        setBookingFilter(filter);
+                        setBookingPage(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wide transition-colors ${
+                        bookingFilter === filter
+                          ? filter === "PENDING" ? "bg-amber-100 text-amber-700 shadow-sm"
+                            : filter === "APPROVED" ? "bg-green-100 text-green-700 shadow-sm"
+                            : filter === "REJECTED" ? "bg-red-100 text-red-700 shadow-sm"
+                            : "bg-white text-blue-700 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700 hover:bg-slate-200/50"
+                      }`}
                     >
-                      Unblock
+                      {filter}
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loginThrottles.length === 0 && (
-            <p className="text-center py-6 text-sm text-gray-500">No blocked login keys currently.</p>
-          )}
-          <Pagination
-            page={throttlePage}
-            totalPages={throttleTotalPages}
-            onPageChange={(p) => void loadThrottle(throttleSearch, p)}
-          />
-        </div>
-      </section>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-      {/* Audit Trail */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm relative">
-        {auditLoading && (
-          <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-lg">
-            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          </div>
+            <div className="overflow-x-auto w-full">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4">Submission</th>
+                    <th className="px-6 py-4">Faculty</th>
+                    <th className="px-6 py-4">Hall & Pax</th>
+                    <th className="px-6 py-4">Required Time</th>
+                    <th className="px-6 py-4">Purpose</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {paginatedBookings.map((b) => (
+                    <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                        {formatDateTime(b.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">{b.user.name || "Unknown"}</div>
+                        <div className="text-gray-500 text-xs mt-0.5">{b.user.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">{b.hall.name}</div>
+                        <div className="text-gray-500 text-xs mt-0.5">Pax: {b.numberOfParticipants || 1}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">{formatDateTime(b.startTime)}</div>
+                        <div className="text-gray-500 text-xs mt-0.5">to {formatDateTime(b.endTime)}</div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-700 max-w-xs truncate" title={b.purpose || ""}>
+                        {b.purpose || "—"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge status={b.status} />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {b.status === "PENDING" ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => void updateStatus(b.id, "APPROVED")}
+                              className="rounded-md bg-green-50 px-3 py-1.5 text-xs font-bold text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => void updateStatus(b.id, "REJECTED")}
+                              className="rounded-md bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">Processed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {paginatedBookings.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        <div className="text-lg mb-1">📭</div>
+                        No bookings found matching the current filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {totalBookingPages > 1 && (
+              <div className="border-t border-slate-200 p-4 bg-slate-50">
+                <Pagination page={bookingPage} totalPages={totalBookingPages} onPageChange={setBookingPage} />
+              </div>
+            )}
+          </section>
         )}
-        <h2 className="text-lg font-semibold text-gray-900">Unblock Audit Trail</h2>
-        {auditError && (
-          <p className="text-sm text-red-600 font-medium mb-2">Error: {auditError}</p>
+
+        {/* 📅 CALENDAR SECTION */}
+        {activeTab === "calendar" && (
+          <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-5 sm:p-6 overflow-x-auto w-full">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Global Calendar</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Visualizes all approved bookings across all halls.
+            </p>
+            <div className="min-w-[700px]">
+              <HallAvailabilityCalendar halls={allHallsWithBookings} />
+            </div>
+          </section>
         )}
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
-                <th className="py-2">When</th>
-                <th className="py-2">Admin</th>
-                <th className="py-2">Key</th>
-                <th className="py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {throttleAudits.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100">
-                  <td className="py-2 text-xs">{formatDateTime(row.createdAt)}</td>
-                  <td className="py-2">{row.adminUser.name}</td>
-                  <td className="py-2 font-mono text-xs">{row.throttleKey}</td>
-                  <td className="py-2">{row.action}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {throttleAudits.length === 0 && (
-            <p className="text-center py-6 text-sm text-gray-500">No unblock audit records yet.</p>
-          )}
-          <Pagination
-            page={auditPage}
-            totalPages={auditTotalPages}
-            onPageChange={(p) => void loadAudit(p)}
-          />
+
+        {/* 📊 REPORTS SECTION */}
+        {activeTab === "reports" && reports && (
+          <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
+            <div className="border-b border-slate-200 p-5 sm:p-6 bg-slate-50/50">
+              <div className="flex flex-col md:flex-row justify-between gap-6 md:items-start">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Analytics & Reports</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Booking overview and detailed data export.
+                  </p>
+                </div>
+                
+                {/* Print Control Form */}
+                <form onSubmit={handlePrintRequest} className="flex gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm items-center">
+                  <span className="text-xs font-medium text-gray-500 uppercase px-2">Print Export</span>
+                  <select 
+                    value={printPeriod}
+                    onChange={(e) => setPrintPeriod(e.target.value as ReportPeriod)}
+                    className="text-sm border-gray-300 rounded-md focus:ring-blue-500 py-1.5 focus:border-blue-500"
+                  >
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                    <option value="all">All Time</option>
+                  </select>
+                  <button 
+                    disabled={printing}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {printing ? "Preparing..." : "🖨️ Print"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Stats Period Toggle */}
+              <div className="mt-8 flex gap-2">
+                {(["today", "week", "month"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setReportPeriod(p)}
+                    className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
+                      reportPeriod === p 
+                        ? "bg-slate-800 text-white shadow-md"
+                        : "bg-white text-gray-700 border border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {p === "today" ? "Today" : p === "week" ? "This Week" : "This Month"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Stats Cards */}
+              <div className="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Total Requests" count={reports[reportPeriod === "today" ? "today" : reportPeriod === "week" ? "thisWeek" : "thisMonth"].total} color="blue" />
+                <StatCard title="Approved" count={reports[reportPeriod === "today" ? "today" : reportPeriod === "week" ? "thisWeek" : "thisMonth"].APPROVED} color="green" />
+                <StatCard title="Pending" count={reports[reportPeriod === "today" ? "today" : reportPeriod === "week" ? "thisWeek" : "thisMonth"].PENDING} color="amber" />
+                <StatCard title="Rejected" count={reports[reportPeriod === "today" ? "today" : reportPeriod === "week" ? "thisWeek" : "thisMonth"].REJECTED} color="red" />
+                <StatCard title="Cancelled" count={reports[reportPeriod === "today" ? "today" : reportPeriod === "week" ? "thisWeek" : "thisMonth"].CANCELLED} color="slate" />
+              </div>
+            </div>
+
+            {/* Detailed Preview Table */}
+            <div className="p-5 sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Detailed Log <span className="text-gray-400 font-normal">({reportPeriod === "today" ? "Today" : reportPeriod === "week" ? "This Week" : "This Month"})</span>
+              </h3>
+              <div className="overflow-x-auto w-full border border-slate-200 rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-100 text-left text-xs font-semibold text-gray-600 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Faculty</th>
+                      <th className="px-4 py-3">Hall</th>
+                      <th className="px-4 py-3">Date & Time</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {reports.previewBookings?.length ? reports.previewBookings.map(b => (
+                      <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">{b.user.name}</div>
+                          <div className="text-gray-500 text-xs">{b.user.email}</div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">{b.hall.name}</div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-800">
+                          {formatDateTime(b.startTime)}
+                          <br/><span className="text-gray-400 text-xs">till</span> {formatDateTime(b.endTime)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <StatusBadge status={b.status} />
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                          {formatDateTime(b.createdAt)}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-gray-500">No records found for this period.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 🔐 SECURITY SECTION */}
+        {activeTab === "security" && (
+          <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-5 sm:p-6 overflow-x-auto w-full">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Security Audit Log</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Tracks rate-limiting interventions and system actions.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                  <tr className="border-b border-slate-200">
+                    <th className="px-4 py-3">Time</th>
+                    <th className="px-4 py-3">Admin</th>
+                    <th className="px-4 py-3">Target Key</th>
+                    <th className="px-4 py-3">Action</th>
+                    <th className="px-4 py-3">Note</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {throttleAudits.map((a) => (
+                    <tr key={a.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                        {formatDateTime(a.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-900 font-medium">
+                        {a.adminUser.name || a.adminUser.email}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 border border-gray-200">
+                          {a.throttleKey}
+                        </code>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                          a.action === 'THROTTLE_RESET' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {a.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate" title={a.note || ""}>
+                        {a.note || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {throttleAudits.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                        No security audit logs found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* 
+        🖨️ PRINT VIEW 
+        Only visible when browser prints. Hidden on screen.
+      */}
+      <div className="hidden print:block font-sans text-black">
+        <div className="border-b-2 border-slate-900 pb-4 mb-6">
+          <h1 className="text-3xl font-bold">Hall Booking System - Report</h1>
+          <p className="text-sm mt-1 text-slate-600">
+            Exported on: {new Date().toLocaleString()} | Period: {printPeriod.toUpperCase()}
+          </p>
         </div>
-      </section>
-    </div>
+        
+        <table className="w-full text-sm text-left border-collapse">
+          <thead>
+            <tr className="border-b-2 border-slate-400">
+              <th className="py-2 pr-4">Faculty Name</th>
+              <th className="py-2 pr-4">Email</th>
+              <th className="py-2 pr-4">Hall & Pax</th>
+              <th className="py-2 pr-4">Booking Slot</th>
+              <th className="py-2 pr-4">Status</th>
+              <th className="py-2">Submitted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {printData.map((b) => (
+              <tr key={b.id} className="border-b border-slate-200">
+                <td className="py-2.5 pr-4 align-top">{b.user.name}</td>
+                <td className="py-2.5 pr-4 align-top">{b.user.email}</td>
+                <td className="py-2.5 pr-4 align-top">
+                  <div>{b.hall.name}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Pax: {b.numberOfParticipants}</div>
+                </td>
+                <td className="py-2.5 pr-4 align-top">
+                  <div>{formatDateTime(b.startTime)}</div>
+                  <div className="text-slate-500">to {formatDateTime(b.endTime)}</div>
+                </td>
+                <td className="py-2.5 pr-4 align-top font-medium">{b.status}</td>
+                <td className="py-2.5 align-top text-slate-600 text-xs">{formatDateTime(b.createdAt)}</td>
+              </tr>
+            ))}
+            {printData.length === 0 && (
+              <tr>
+                <td colSpan={6} className="py-8 text-center italic text-slate-500">
+                  No records found in this period.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        <div className="text-center text-xs text-slate-400 mt-12 pt-6 border-t border-slate-200">
+          Generated automatically by College Hall Booking System Management
+        </div>
+      </div>
+    </>
   );
 }
 
-/* ═══════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════ */
+function StatCard({ title, count, color }: { title: string; count: number; color: "blue"|"green"|"amber"|"red"|"slate" }) {
+  const bgClasses = {
+    blue: "bg-blue-50 border-blue-100",
+    green: "bg-green-50 border-green-100",
+    amber: "bg-amber-50 border-amber-100",
+    red: "bg-red-50 border-red-100",
+    slate: "bg-slate-50 border-slate-200",
+  };
+  const textClasses = {
+    blue: "text-blue-600",
+    green: "text-green-600",
+    amber: "text-amber-600",
+    red: "text-red-500",
+    slate: "text-slate-700",
+  };
+  
+  return (
+    <div className={`rounded-xl border p-4 shadow-sm flex flex-col items-center justify-center ${bgClasses[color]}`}>
+      <div className={`text-3xl font-black tracking-tight ${textClasses[color]}`}>{count}</div>
+      <div className="text-xs font-semibold text-gray-500 uppercase mt-1 tracking-widest">{title}</div>
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const styles: Record<BookingStatus, string> = {
-    APPROVED: "bg-green-50 text-green-700",
-    PENDING: "bg-yellow-50 text-yellow-700",
-    REJECTED: "bg-red-50 text-red-700",
-    CANCELLED: "bg-gray-50 text-gray-600",
+    APPROVED: "bg-green-50 text-green-700 border-green-200",
+    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+    REJECTED: "bg-red-50 text-red-700 border-red-200",
+    CANCELLED: "bg-gray-50 text-gray-600 border-gray-200",
   };
   return (
-    <span className={`rounded px-2 py-1 text-xs font-medium ${styles[status]}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide border ${styles[status]}`}>
       {status}
     </span>
   );

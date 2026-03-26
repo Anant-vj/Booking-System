@@ -12,6 +12,7 @@ type Booking = {
   startTime: string;
   endTime: string;
   purpose: string | null;
+  numberOfParticipants: number;
   hall: Hall;
 };
 type AvailabilityHall = Hall & {
@@ -24,7 +25,15 @@ type AvailabilityHall = Hall & {
   }>;
 };
 
+type TabId = "bookings" | "calendar";
+
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: "bookings", label: "Bookings", icon: "📋" },
+  { id: "calendar", label: "Calendar", icon: "📅" },
+];
+
 export function FacultyDashboard() {
+  const [activeTab, setActiveTab] = useState<TabId>("bookings");
   const [halls, setHalls] = useState<Hall[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [availability, setAvailability] = useState<AvailabilityHall[]>([]);
@@ -32,12 +41,14 @@ export function FacultyDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string>("");
   const [purposeError, setPurposeError] = useState(false);
+  const [timeError, setTimeError] = useState(false);
 
   const [form, setForm] = useState({
     hallId: "",
     startTime: toInputDateTimeValue(new Date(Date.now() + 60 * 60 * 1000)),
     endTime: toInputDateTimeValue(new Date(Date.now() + 2 * 60 * 60 * 1000)),
     purpose: "",
+    numberOfParticipants: 1,
   });
 
   async function loadAll() {
@@ -75,19 +86,29 @@ export function FacultyDashboard() {
 
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setTimeError(false);
+    setPurposeError(false);
+    setMessage("");
+
     if (!form.purpose.trim()) {
       setPurposeError(true);
       return;
     }
-    setPurposeError(false);
+
+    if (new Date(form.startTime) >= new Date(form.endTime)) {
+      setTimeError(true);
+      alert("⚠️ StartTime must be before EndTime");
+      return;
+    }
+
     setSubmitting(true);
-    setMessage("");
 
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        numberOfParticipants: Number(form.numberOfParticipants),
         startTime: new Date(form.startTime).toISOString(),
         endTime: new Date(form.endTime).toISOString(),
       }),
@@ -129,178 +150,238 @@ export function FacultyDashboard() {
     );
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 lg:flex-row">
-        {/* New Booking Form */}
-        <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Requests are saved as pending. Only approved bookings block slots.
-          </p>
-          <form onSubmit={submitBooking} className="mt-4 grid gap-3">
-            <label className="grid gap-1 text-sm text-gray-700">
-              Hall
-              <select
-                className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-400 focus:outline-none"
-                value={form.hallId}
-                onChange={(e) => setForm((prev) => ({ ...prev, hallId: e.target.value }))}
-                required
-              >
-                {halls.map((hall) => (
-                  <option value={hall.id} key={hall.id}>
-                    {hall.name} {hall.capacity ? `(${hall.capacity})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm text-gray-700">
-              Start Time
-              <input
-                type="datetime-local"
-                className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-400 focus:outline-none"
-                value={form.startTime}
-                onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
-                required
-              />
-            </label>
-            <label className="grid gap-1 text-sm text-gray-700">
-              End Time
-              <input
-                type="datetime-local"
-                className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-400 focus:outline-none"
-                value={form.endTime}
-                onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
-                required
-              />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-gray-700">
-              Purpose
-              <textarea
-                className={`min-h-20 rounded-md border px-3 py-2 text-gray-900 focus:outline-none focus:ring-1 transition-colors ${
-                  purposeError ? "border-red-400 focus:border-red-400 focus:ring-red-400" : "border-gray-300 focus:border-blue-400 focus:ring-blue-400"
-                }`}
-                value={form.purpose}
-                onChange={(e) => {
-                  setForm((prev) => ({ ...prev, purpose: e.target.value }));
-                  if (e.target.value.trim()) setPurposeError(false);
-                }}
-                required
-              />
-              {purposeError && <span className="text-sm text-red-500">Purpose is required.</span>}
-            </label>
-            <button
-              disabled={submitting}
-              type="submit"
-              className="rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
-            >
-              {submitting ? "Submitting..." : "Submit Request"}
-            </button>
-          </form>
-          {message ? (
-            <p className="mt-3 text-sm text-blue-700 bg-blue-50 rounded-md px-3 py-2">{message}</p>
-          ) : null}
-        </section>
+  const nowMin = toInputDateTimeValue(new Date());
 
-        {/* My Bookings */}
-        <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
-          <div className="mt-4 overflow-x-auto w-full">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-gray-700 font-medium">
-                  <th className="py-2 pr-3">Hall</th>
-                  <th className="py-2 pr-3">Time</th>
-                  <th className="py-2 pr-3">Status</th>
-                  <th className="py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((booking) => (
-                  <tr key={booking.id} className="border-b border-slate-100">
-                    <td className="py-2.5 pr-3 text-gray-900 font-medium">
-                      <span className="truncate block max-w-[120px] md:max-w-none" title={booking.hall.name}>
-                        {booking.hall.name}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-gray-800 whitespace-nowrap">
-                      {formatDateTime(booking.startTime)} – {formatDateTime(booking.endTime)}
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <StatusBadge status={booking.status} />
-                    </td>
-                    <td className="py-2.5">
-                      {booking.status !== "CANCELLED" && booking.status !== "REJECTED" ? (
-                        <button
-                          type="button"
-                          onClick={() => void cancelBooking(booking.id)}
-                          className="rounded border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      ) : (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </td>
+  return (
+    <div className="grid gap-5">
+      {/* Tab Navigation */}
+      <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm overflow-x-auto">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all ${
+              activeTab === tab.id
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            }`}
+          >
+            <span>{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Tab Content */}
+      {activeTab === "bookings" && (
+        <div className="flex flex-col gap-5 lg:flex-row">
+          {/* New Booking Form */}
+          <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+            <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Requests are saved as pending. Only approved bookings block slots.
+            </p>
+            <form onSubmit={submitBooking} className="mt-4 grid gap-3">
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Hall
+                <select
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  value={form.hallId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, hallId: e.target.value }))}
+                  required
+                >
+                  {halls.map((hall) => (
+                    <option value={hall.id} key={hall.id}>
+                      {hall.name} {hall.capacity ? `(${hall.capacity})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="grid gap-1 text-sm font-medium text-gray-700">
+                  Start Time
+                  <input
+                    type="datetime-local"
+                    min={nowMin}
+                    className={`w-full rounded-md border px-3 py-2 text-gray-900 focus:outline-none focus:ring-1 transition-colors ${
+                      timeError ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500" : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    }`}
+                    value={form.startTime}
+                    onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-gray-700">
+                  End Time
+                  <input
+                    type="datetime-local"
+                    min={form.startTime || nowMin}
+                    className={`w-full rounded-md border px-3 py-2 text-gray-900 focus:outline-none focus:ring-1 transition-colors ${
+                      timeError ? "border-amber-400 focus:border-amber-500 focus:ring-amber-500" : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    }`}
+                    value={form.endTime}
+                    onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                    required
+                  />
+                </label>
+              </div>
+              {timeError && (
+                <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                  ⚠️ StartTime must be before EndTime
+                </p>
+              )}
+
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Number of Participants
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  value={form.numberOfParticipants}
+                  onChange={(e) => setForm((prev) => ({ ...prev, numberOfParticipants: Number(e.target.value) }))}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm font-medium text-gray-700">
+                Purpose
+                <textarea
+                  className={`w-full min-h-[80px] rounded-md border px-3 py-2 text-gray-900 focus:outline-none focus:ring-1 transition-colors ${
+                    purposeError ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  }`}
+                  value={form.purpose}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, purpose: e.target.value }));
+                    if (e.target.value.trim()) setPurposeError(false);
+                  }}
+                  required
+                />
+                {purposeError && <span className="text-sm text-red-500">Purpose is required.</span>}
+              </label>
+              <button
+                disabled={submitting}
+                type="submit"
+                className="rounded-md bg-blue-600 mt-2 px-4 py-2.5 text-white font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors w-full sm:w-auto"
+              >
+                {submitting ? "Submitting..." : "Submit Request"}
+              </button>
+            </form>
+            {message && (
+              <p className="mt-4 text-sm text-blue-800 bg-blue-50 rounded-md px-3 py-2 border border-blue-100">
+                {message}
+              </p>
+            )}
+          </section>
+
+          {/* My Bookings */}
+          <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+            <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-gray-700 font-medium whitespace-nowrap">
+                    <th className="py-2 pr-4">Hall</th>
+                    <th className="py-2 pr-4">Pax</th>
+                    <th className="py-2 pr-4">Time</th>
+                    <th className="py-2 pr-4">Status</th>
+                    <th className="py-2">Action</th>
                   </tr>
-                ))}
-                {bookings.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-sm text-gray-500">
-                      No bookings yet. Submit your first request!
-                    </td>
-                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.map((booking) => (
+                    <tr key={booking.id} className="border-b border-slate-100">
+                      <td className="py-2.5 pr-4 text-gray-900 font-medium">
+                        <span className="truncate block max-w-[120px] md:max-w-none" title={booking.hall.name}>
+                          {booking.hall.name}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-gray-800 whitespace-nowrap">
+                        {booking.numberOfParticipants || 1}
+                      </td>
+                      <td className="py-2.5 pr-4 text-gray-800 whitespace-nowrap">
+                        <span className="block text-xs">{formatDateTime(booking.startTime)}</span>
+                        <span className="block text-xs text-gray-500">till {formatDateTime(booking.endTime)}</span>
+                      </td>
+                      <td className="py-2.5 pr-4 whitespace-nowrap">
+                        <StatusBadge status={booking.status} />
+                      </td>
+                      <td className="py-2.5">
+                        {booking.status !== "CANCELLED" && booking.status !== "REJECTED" ? (
+                          <button
+                            type="button"
+                            onClick={() => void cancelBooking(booking.id)}
+                            className="rounded border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {bookings.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-sm text-gray-500">
+                        No bookings yet. Submit your first request!
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Calendar Tab Content */}
+      {activeTab === "calendar" && (
+        <section className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+          <h2 className="text-lg font-semibold text-gray-900">Hall Availability (Approved Only)</h2>
+          <p className="mt-1 text-sm text-gray-500 mb-4">
+            Calendar view of occupied slots per hall.
+          </p>
+          <div className="overflow-x-auto pb-4">
+            <HallAvailabilityCalendar halls={availability} />
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {upcomingApproved.map((hall) => (
+              <div key={hall.id} className="rounded-md border border-slate-200 p-3 sm:p-4">
+                <h3 className="font-semibold text-gray-900">{hall.name}</h3>
+                {hall.bookings.length === 0 ? (
+                  <p className="mt-2 text-sm text-green-700 bg-green-50 rounded px-2 py-1 inline-block">No approved bookings yet.</p>
+                ) : (
+                  <ul className="mt-3 space-y-2 text-sm">
+                    {hall.bookings.map((slot) => (
+                      <li key={slot.id} className="rounded-md bg-slate-50 border border-slate-100 p-2.5">
+                        <div className="text-gray-900 font-medium mb-0.5">
+                          {formatDateTime(slot.startTime)} – {formatDateTime(slot.endTime)}
+                        </div>
+                        <div className="text-gray-600 text-xs">{slot.purpose ?? "No purpose provided"}</div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </tbody>
-            </table>
+              </div>
+            ))}
           </div>
         </section>
-      </div>
-
-      {/* Calendar Section */}
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">Hall Availability (Approved Only)</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Calendar view of occupied slots per hall.
-        </p>
-        <div className="mt-4">
-          <HallAvailabilityCalendar halls={availability} />
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {upcomingApproved.map((hall) => (
-            <div key={hall.id} className="rounded-md border border-slate-200 p-3">
-              <h3 className="font-semibold text-gray-900">{hall.name}</h3>
-              {hall.bookings.length === 0 ? (
-                <p className="mt-2 text-sm text-green-700">No approved bookings yet.</p>
-              ) : (
-                <ul className="mt-2 space-y-2 text-sm">
-                  {hall.bookings.map((slot) => (
-                    <li key={slot.id} className="rounded bg-slate-50 p-2">
-                      <div className="text-gray-900 font-medium">
-                        {formatDateTime(slot.startTime)} – {formatDateTime(slot.endTime)}
-                      </div>
-                      <div className="text-gray-600">{slot.purpose ?? "No purpose provided"}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+      )}
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const styles: Record<BookingStatus, string> = {
-    APPROVED: "bg-green-50 text-green-700",
-    PENDING: "bg-yellow-50 text-yellow-700",
-    REJECTED: "bg-red-50 text-red-700",
-    CANCELLED: "bg-gray-100 text-gray-600",
+    APPROVED: "bg-green-50 text-green-700 border-green-200",
+    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+    REJECTED: "bg-red-50 text-red-700 border-red-200",
+    CANCELLED: "bg-gray-50 text-gray-600 border-gray-200",
   };
   return (
-    <span className={`rounded px-2 py-1 text-xs font-medium ${styles[status]}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold border uppercase tracking-wider ${styles[status]}`}>
       {status}
     </span>
   );

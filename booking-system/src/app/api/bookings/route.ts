@@ -12,6 +12,7 @@ const createBookingSchema = z.object({
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   purpose: z.string().trim().max(500).optional(),
+  numberOfParticipants: z.coerce.number().int().min(1),
 });
 
 export async function POST(request: Request) {
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
         startTime,
         endTime,
         purpose: parsed.data.purpose,
+        numberOfParticipants: parsed.data.numberOfParticipants,
         status: BookingStatus.PENDING,
       },
       include: {

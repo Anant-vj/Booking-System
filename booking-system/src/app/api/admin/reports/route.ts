@@ -4,9 +4,12 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: Request) {
   const result = await requireRole(["ADMIN"]);
   if ("error" in result) return result.error;
+
+  const { searchParams } = new URL(request.url);
+  const period = searchParams.get("period"); // today, week, month, year, all
 
   const now = new Date();
 
@@ -58,7 +61,38 @@ export async function GET() {
       getStats(monthStart, monthEnd),
     ]);
 
-    return NextResponse.json({ today, thisWeek, thisMonth });
+    let previewBookings: any[] = [];
+    if (period) {
+      let queryStart: Date | undefined;
+      let queryEnd: Date | undefined;
+
+      if (period === "today") {
+        queryStart = todayStart;
+        queryEnd = todayEnd;
+      } else if (period === "week") {
+        queryStart = weekStart;
+        queryEnd = weekEnd;
+      } else if (period === "month") {
+        queryStart = monthStart;
+        queryEnd = monthEnd;
+      } else if (period === "year") {
+        queryStart = new Date(now.getFullYear(), 0, 1);
+        queryEnd = new Date(now.getFullYear() + 1, 0, 1);
+      } // 'all' leaves both undefined
+
+      previewBookings = await prisma.booking.findMany({
+        where: {
+          ...(queryStart && queryEnd ? { createdAt: { gte: queryStart, lt: queryEnd } } : {}),
+        },
+        include: {
+          hall: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    return NextResponse.json({ today, thisWeek, thisMonth, previewBookings });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
