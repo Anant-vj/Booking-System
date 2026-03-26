@@ -145,7 +145,7 @@ export function FacultyDashboard() {
     return (
       <div className="flex items-center justify-center py-16 gap-2">
         <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-gray-500">Loading dashboard…</span>
+        <span className="text-sm text-slate-800 font-bold">Loading dashboard…</span>
       </div>
     );
   }
@@ -161,10 +161,10 @@ export function FacultyDashboard() {
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold whitespace-nowrap transition-all ${
               activeTab === tab.id
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
             }`}
           >
             <span>{tab.icon}</span>
@@ -179,7 +179,7 @@ export function FacultyDashboard() {
           {/* New Booking Form */}
           <section className="w-full lg:w-1/2 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
             <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-slate-700 font-medium">
               Requests are saved as pending. Only approved bookings block slots.
             </p>
             <form onSubmit={submitBooking} className="mt-4 grid gap-3">
@@ -280,13 +280,13 @@ export function FacultyDashboard() {
             <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-gray-700 font-medium whitespace-nowrap">
-                    <th className="py-2 pr-4">Hall</th>
-                    <th className="py-2 pr-4">Pax</th>
-                    <th className="py-2 pr-4">Time</th>
-                    <th className="py-2 pr-4">Status</th>
-                    <th className="py-2">Action</th>
+                <thead className="bg-slate-200 text-left text-xs font-black text-slate-900 uppercase tracking-wider">
+                  <tr className="border-b-2 border-slate-300 whitespace-nowrap">
+                    <th className="py-3 px-4">Hall</th>
+                    <th className="py-3 px-4">People</th>
+                    <th className="py-3 px-4">Time</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -301,8 +301,8 @@ export function FacultyDashboard() {
                         {booking.numberOfParticipants || 1}
                       </td>
                       <td className="py-2.5 pr-4 text-gray-800 whitespace-nowrap">
-                        <span className="block text-xs">{formatDateTime(booking.startTime)}</span>
-                        <span className="block text-xs text-gray-500">till {formatDateTime(booking.endTime)}</span>
+                         <span className="block text-xs font-medium text-slate-800">{formatDateTime(booking.startTime)}</span>
+                         <span className="block text-xs text-slate-600 font-bold tracking-tight">till {formatDateTime(booking.endTime)}</span>
                       </td>
                       <td className="py-2.5 pr-4 whitespace-nowrap">
                         <StatusBadge status={booking.status} />
@@ -340,7 +340,7 @@ export function FacultyDashboard() {
       {activeTab === "calendar" && (
         <section className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
           <h2 className="text-lg font-semibold text-gray-900">Hall Availability (Approved Only)</h2>
-          <p className="mt-1 text-sm text-gray-500 mb-4">
+          <p className="mt-1 text-sm text-slate-700 font-medium mb-4">
             Calendar view of occupied slots per hall.
           </p>
           <div className="overflow-x-auto pb-4">
@@ -375,13 +375,13 @@ export function FacultyDashboard() {
 
 function StatusBadge({ status }: { status: BookingStatus }) {
   const styles: Record<BookingStatus, string> = {
-    APPROVED: "bg-green-50 text-green-700 border-green-200",
-    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-    REJECTED: "bg-red-50 text-red-700 border-red-200",
-    CANCELLED: "bg-gray-50 text-gray-600 border-gray-200",
+    APPROVED: "bg-green-100 text-green-900 border-green-300 shadow-sm",
+    PENDING: "bg-amber-100 text-amber-900 border-amber-300 shadow-sm",
+    REJECTED: "bg-red-100 text-red-900 border-red-300 shadow-sm",
+    CANCELLED: "bg-slate-100 text-slate-900 border-slate-300 shadow-sm",
   };
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold border uppercase tracking-wider ${styles[status]}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black border uppercase tracking-widest ${styles[status]}`}>
       {status}
     </span>
   );

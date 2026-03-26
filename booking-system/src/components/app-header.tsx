@@ -12,8 +12,13 @@ export function AppHeader({ role, email, userName }: AppHeaderProps) {
       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Left: Logo + Title */}
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white text-lg font-bold shrink-0">
-            🏛️
+          {/* LOGO PLACEHOLDER: See /README-ASSETS.md for replacement instructions */}
+          <div 
+            className="flex h-11 w-32 items-center justify-center rounded bg-slate-100 border border-dashed border-slate-300 text-slate-500 text-xs font-bold shrink-0 overflow-hidden relative"
+            title="Replace me with /public/images/logo.png"
+          >
+            <span className="z-10 text-center px-1">Logo Space<br/><span className="font-normal text-[10px]">(logo.png)</span></span>
+            {/* <img src="/images/logo.png" alt="Logo" className="absolute inset-0 w-full h-full object-contain" /> */}
           </div>
           <div>
             <h1 className="text-lg font-semibold text-gray-900 leading-tight">
