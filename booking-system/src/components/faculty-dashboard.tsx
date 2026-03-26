@@ -177,7 +177,7 @@ export function FacultyDashboard() {
       {activeTab === "bookings" && (
         <div className="flex flex-col gap-5 lg:flex-row w-full max-w-full">
           {/* New Booking Form */}
-          <section className="w-full max-w-full lg:w-1/2 flex flex-col min-w-0 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <section className="w-full flex flex-col overflow-y-auto lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
             <p className="mt-1 text-sm text-slate-700 font-medium">
               Requests are saved as pending. Only approved bookings block slots.
@@ -276,7 +276,7 @@ export function FacultyDashboard() {
           </section>
 
           {/* My Bookings */}
-          <section className="w-full max-w-full lg:w-1/2 flex flex-col min-w-0 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <section className="w-full flex flex-col overflow-y-auto lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
             <div className="mt-4 w-full max-w-full overflow-x-auto">
               <table className="min-w-[600px] w-full text-sm">
@@ -338,7 +338,7 @@ export function FacultyDashboard() {
 
       {/* Calendar Tab Content */}
       {activeTab === "calendar" && (
-        <section className="w-full max-w-full rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-sm overflow-hidden">
+        <section className="w-full flex flex-col overflow-y-auto rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900">Hall Availability (Approved Only)</h2>
           <p className="mt-1 text-sm text-slate-700 font-medium mb-4">
             Calendar view of occupied slots per hall.

@@ -10,8 +10,8 @@ export default async function FacultyPage() {
   if (session.user.role === "ADMIN") redirect("/admin");
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="mx-auto w-full max-w-5xl">
+    <main className="min-h-screen flex flex-col overflow-x-hidden bg-slate-50 p-4 md:p-8">
+      <div className="w-full flex flex-col overflow-y-auto mx-auto max-w-5xl">
         <AppHeader
           role="FACULTY"
           email={session.user.email ?? ""}
