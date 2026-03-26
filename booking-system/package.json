@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
-  },
+  "dev": "next dev",
+  "build": "prisma generate && next build",
+  "start": "next start",
+  "lint": "eslint",
+  "db:generate": "prisma generate",
+  "db:migrate": "prisma migrate dev",
+  "db:seed": "prisma db seed",
+  "postinstall": "prisma generate"
+   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
@@ -50,4 +51,5 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   }
+  
 }
