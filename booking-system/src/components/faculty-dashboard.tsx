@@ -153,7 +153,7 @@ export function FacultyDashboard() {
   const nowMin = toInputDateTimeValue(new Date());
 
   return (
-    <div className="grid gap-5 w-full max-w-full overflow-x-hidden">
+    <div className="flex flex-col gap-5 w-full">
       {/* Tab Navigation */}
       <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm overflow-x-auto">
         {TABS.map((tab) => (
@@ -175,9 +175,9 @@ export function FacultyDashboard() {
 
       {/* Tab Content */}
       {activeTab === "bookings" && (
-        <div className="flex flex-col gap-5 lg:flex-row w-full max-w-full">
+        <div className="flex flex-col gap-5 lg:flex-row w-full overflow-visible">
           {/* New Booking Form */}
-          <section className="w-full flex flex-col overflow-y-auto lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
+          <section className="w-full flex flex-col lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">New Booking Request</h2>
             <p className="mt-1 text-sm text-slate-700 font-medium">
               Requests are saved as pending. Only approved bookings block slots.
@@ -276,7 +276,7 @@ export function FacultyDashboard() {
           </section>
 
           {/* My Bookings */}
-          <section className="w-full flex flex-col overflow-y-auto lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
+          <section className="w-full flex flex-col lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
             <div className="mt-4 w-full max-w-full overflow-x-auto">
               <table className="min-w-[600px] w-full text-sm">
