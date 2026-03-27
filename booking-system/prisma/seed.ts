@@ -71,6 +71,11 @@ async function main() {
       email: "sandyaselvam@gmail.com",
       password: "123456",
     },
+    {
+      name: "Karthika",
+      email: "mkarthioff@gmail.com",
+      password: "123456",
+    },
   ];
 
   for (const faculty of facultyList) {
