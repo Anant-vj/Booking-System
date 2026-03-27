@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
+  // 🔹 Seed Halls
   const halls = [
     { name: "Hall A", capacity: 300 },
     { name: "Hall B", capacity: 220 },
@@ -23,58 +24,85 @@ async function main() {
     });
   }
 
+  // 🔹 Seed Admin
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? "admin@college.edu";
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD ?? "Admin@123";
-  const hashed = await bcrypt.hash(adminPassword, 10);
+  const adminHashed = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.upsert({
     where: { email: adminEmail },
     update: {
       name: "Default Admin",
       role: Role.ADMIN,
-      password: hashed,
+      password: adminHashed,
     },
     create: {
       name: "Default Admin",
       email: adminEmail,
-      password: hashed,
+      password: adminHashed,
       role: Role.ADMIN,
     },
   });
 
-  const facultyEmail = "faculty@college.edu";
-  const facultyHashed = await bcrypt.hash("Faculty@123", 10);
-  const faculty = await prisma.user.upsert({
-    where: { email: facultyEmail },
-    update: {
+  // 🔹 Faculty List (SCALABLE WAY)
+  const facultyList = [
+    {
       name: "Demo Faculty",
-      role: Role.FACULTY,
-      password: facultyHashed,
+      email: "faculty@college.edu",
+      password: "Faculty@123",
     },
-    create: {
-      name: "Demo Faculty",
-      email: facultyEmail,
-      password: facultyHashed,
-      role: Role.FACULTY,
+    {
+      name: "Anantharaman",
+      email: "anantharaman0607@gmail.com",
+      password: "123456",
     },
+    {
+      name: "Anant VJ",
+      email: "anantvj06@gmail.com",
+      password: "123456",
+    },
+  ];
+
+  for (const faculty of facultyList) {
+    const hashedPassword = await bcrypt.hash(faculty.password, 10);
+
+    await prisma.user.upsert({
+      where: { email: faculty.email },
+      update: {
+        name: faculty.name,
+        role: Role.FACULTY,
+        password: hashedPassword,
+      },
+      create: {
+        name: faculty.name,
+        email: faculty.email,
+        password: hashedPassword,
+        role: Role.FACULTY,
+      },
+    });
+  }
+
+  // 🔹 Seed Sample Booking
+  const facultyUser = await prisma.user.findUnique({
+    where: { email: "faculty@college.edu" },
   });
 
   const hall = await prisma.hall.findFirst({ where: { name: "Hall A" } });
-  if (hall) {
+
+  if (hall && facultyUser) {
     const start = new Date();
     start.setDate(start.getDate() + 2);
     start.setHours(10, 0, 0, 0);
+
     const end = new Date(start);
     end.setHours(12, 0, 0, 0);
 
     await prisma.booking.upsert({
-      where: {
-        id: "seed-approved-booking-id",
-      },
+      where: { id: "seed-approved-booking-id" },
       update: {},
       create: {
         id: "seed-approved-booking-id",
-        userId: faculty.id,
+        userId: facultyUser.id,
         hallId: hall.id,
         startTime: start,
         endTime: end,
@@ -83,14 +111,15 @@ async function main() {
       },
     });
   }
+
+  console.log("✅ Seed completed successfully");
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
   .catch(async (error) => {
     console.error(error);
-    await prisma.$disconnect();
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });
