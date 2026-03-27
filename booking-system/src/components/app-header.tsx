@@ -45,7 +45,16 @@ export function AppHeader({ role, email, userName }: AppHeaderProps) {
             </div>
             <p className="text-xs text-gray-500 sm:hidden">{email}</p>
           </div>
-          <LogoutButton />
+          
+          <div className="flex items-center gap-2">
+            <a 
+              href="/change-password"
+              className="hidden md:inline-flex items-center rounded border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Change Password
+            </a>
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </header>
