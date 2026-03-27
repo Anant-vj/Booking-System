@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import { getApprovedConflictsCount } from "@/lib/booking-conflicts";
 import { handlePrismaError, parseJsonBody } from "@/lib/api-errors";
 import { prisma } from "@/lib/prisma";
+import { BookingService } from "@/services/BookingService";
 
 const createBookingSchema = z.object({
   hallId: z.string().min(1),
@@ -78,16 +79,23 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const result = await requireUser();
   if ("error" in result) return result.error;
   const { session } = result;
 
-  const bookings = await prisma.booking.findMany({
-    where: { userId: session.user.id },
-    include: { hall: true },
-    orderBy: { startTime: "desc" },
-  });
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+  const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "8"));
 
-  return NextResponse.json(bookings);
+  try {
+    const data = await BookingService.listBookingsWithConflicts({
+      userId: session.user.id,
+      page,
+      pageSize,
+    });
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
+  }
 }

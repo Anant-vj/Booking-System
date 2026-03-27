@@ -3,14 +3,18 @@ import { prisma } from "@/lib/prisma";
 
 export type BookingQueryParams = {
   status?: BookingStatus;
+  userId?: string;
   page: number;
   pageSize: number;
 };
 
 export class BookingService {
   static async listBookingsWithConflicts(params: BookingQueryParams) {
-    const { status, page, pageSize } = params;
-    const where: Prisma.BookingWhereInput = status ? { status } : {};
+    const { status, userId, page, pageSize } = params;
+    const where: Prisma.BookingWhereInput = {
+      ...(status ? { status } : {}),
+      ...(userId ? { userId } : {}),
+    };
     const skip = (page - 1) * pageSize;
 
     const [rawBookings, total] = await Promise.all([

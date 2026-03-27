@@ -13,41 +13,38 @@ export default async function LoginPage(props: {
 
   return (
     <main className="flex min-h-screen">
-      {/* Left: College Image Placeholder */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-slate-100 relative overflow-hidden border-r border-slate-200">
-        {/* IMAGE PLACEHOLDER: See /README-ASSETS.md */}
-        <div className="absolute inset-0 z-0 flex flex-col items-center justify-center text-slate-400 font-mono text-sm border-[3px] border-dashed border-slate-300 m-8 rounded-2xl bg-slate-50">
-           <span className="font-bold text-lg text-slate-500">[ LOGIN BACKGROUND ]</span>
-           <span className="mt-2 text-xs">/public/images/login-bg.jpg</span>
-           <span className="mt-1 text-xs">Recommended: 1920x1080px</span>
-        </div>
-        
-        {/* Overlay content - you can remove this entirely when using a real image if you prefer */}
-        <div className="text-center text-slate-800 z-10 px-8 relative bg-white/70 backdrop-blur-md p-10 rounded-3xl border border-white/60 shadow-xl shadow-slate-200/50">
-          <div className="text-6xl mb-6">🏛️</div>
-          <h2 className="text-3xl font-extrabold mb-3">College Hall Booking</h2>
-          <p className="text-slate-600 text-lg max-w-sm mx-auto font-medium">
-            Streamlined hall reservation system for faculty and administration
-          </p>
-        </div>
+      {/* Left: Clean College Background Image */}
+      <div className="hidden lg:block lg:w-1/2 relative bg-slate-100 border-r border-slate-200">
+        <img 
+          src="/images/login-bg.jpg" 
+          alt="Mannar Thirumalai Naicker College Campus" 
+          className="absolute inset-0 z-0 h-full w-full object-cover" 
+        />
       </div>
 
-      {/* Right: Login Form */}
-      <div className="flex w-full lg:w-1/2 items-center justify-center bg-slate-50 p-6">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 text-slate-500 text-[10px] mb-3 leading-tight font-bold shadow-sm">
-              Logo<br/>(logo.png)
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">College Hall Booking</h1>
+      {/* Right: Login Section */}
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center px-6 bg-slate-50 py-12">
+        <div className="w-full max-w-md space-y-6">
+          {/* Branding Repositioned to Right Top */}
+          <div className="text-center flex flex-col items-center">
+            <img
+              src="/images/logo.png"
+              alt="College Logo"
+              className="w-16 h-16 object-contain mx-auto mb-2"
+            />
+            <h1 className="text-2xl font-bold text-gray-900">
+              College Hall Booking
+            </h1>
             <p className="text-sm text-gray-500 mt-1">Management System</p>
           </div>
 
-          <LoginForm error={error} />
+          {/* Login Card below branding */}
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full border border-slate-200">
+            <LoginForm error={error} />
+          </div>
 
-          <footer className="mt-6 text-center text-sm text-gray-400">
-            <span className="text-pink-400 mr-1">✦</span>
+          <footer className="mt-8 text-center text-sm text-gray-400">
+            <span className="text-pink-400 mr-1 font-bold">✦</span>
             Crafted by{" "}
             <a
               href="https://www.linkedin.com/in/anantharamanvj/"

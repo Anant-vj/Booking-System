@@ -38,10 +38,17 @@ export function FacultyDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [availability, setAvailability] = useState<AvailabilityHall[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingBookings, setLoadingBookings] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string>("");
   const [purposeError, setPurposeError] = useState(false);
   const [timeError, setTimeError] = useState(false);
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 8;
 
   const [form, setForm] = useState({
     hallId: "",
@@ -51,23 +58,52 @@ export function FacultyDashboard() {
     numberOfParticipants: 1,
   });
 
+  async function loadBookings(targetPage: number) {
+    setLoadingBookings(true);
+    try {
+      const res = await fetch(`/api/bookings?page=${targetPage}&pageSize=${PAGE_SIZE}`);
+      const data = await res.json();
+      if (res.ok) {
+        setBookings(data.items || []);
+        setTotalPages(Math.ceil(data.total / PAGE_SIZE) || 1);
+        setTotalCount(data.total || 0);
+        setPage(data.page || 1);
+      }
+    } catch (err) {
+      console.error("Failed to load bookings", err);
+    } finally {
+      setLoadingBookings(false);
+    }
+  }
+
   async function loadAll() {
     setLoading(true);
-    const [hallsRes, bookingsRes, availabilityRes] = await Promise.all([
-      fetch("/api/halls"),
-      fetch("/api/bookings"),
-      fetch("/api/halls/availability"),
-    ]);
-    const hallsData = await hallsRes.json();
-    const bookingsData = await bookingsRes.json();
-    const availabilityData = await availabilityRes.json();
-    setHalls(hallsData);
-    setBookings(bookingsData);
-    setAvailability(availabilityData);
-    if (!form.hallId && hallsData[0]?.id) {
-      setForm((prev) => ({ ...prev, hallId: hallsData[0].id }));
+    try {
+      const [hallsRes, bookingsRes, availabilityRes] = await Promise.all([
+        fetch("/api/halls"),
+        fetch(`/api/bookings?page=1&pageSize=${PAGE_SIZE}`),
+        fetch("/api/halls/availability"),
+      ]);
+      
+      const hallsData = await hallsRes.json();
+      const bookingsData = await bookingsRes.json();
+      const availabilityData = await availabilityRes.json();
+
+      setHalls(hallsData);
+      setBookings(bookingsData.items || []);
+      setTotalPages(Math.ceil(bookingsData.total / PAGE_SIZE) || 1);
+      setTotalCount(bookingsData.total || 0);
+      setPage(1);
+      
+      setAvailability(availabilityData);
+      if (!form.hallId && hallsData[0]?.id) {
+        setForm((prev) => ({ ...prev, hallId: hallsData[0].id }));
+      }
+    } catch (err) {
+      console.error("Dashboard load error", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -138,7 +174,7 @@ export function FacultyDashboard() {
       return;
     }
     setMessage("Booking cancelled.");
-    await loadAll();
+    await loadBookings(page);
   }
 
   if (loading) {
@@ -278,7 +314,12 @@ export function FacultyDashboard() {
           {/* My Bookings */}
           <section className="w-full flex flex-col lg:w-1/2 min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-4 sm:p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">My Bookings</h2>
-            <div className="mt-4 w-full max-w-full overflow-x-auto">
+            <div className="mt-4 w-full max-w-full overflow-x-auto relative min-h-[200px]">
+              {loadingBookings && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-lg">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
               <table className="min-w-[600px] w-full text-sm">
                 <thead className="bg-slate-200 text-left text-xs font-black text-slate-900 uppercase tracking-wider">
                   <tr className="border-b-2 border-slate-300 whitespace-nowrap">
@@ -322,7 +363,7 @@ export function FacultyDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {bookings.length === 0 && (
+                  {bookings.length === 0 && !loadingBookings && (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-sm text-gray-500">
                         No bookings yet. Submit your first request!
@@ -332,6 +373,31 @@ export function FacultyDashboard() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => void loadBookings(page - 1)}
+                  disabled={page <= 1 || loadingBookings}
+                  className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  ← Previous
+                </button>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void loadBookings(page + 1)}
+                  disabled={page >= totalPages || loadingBookings}
+                  className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </section>
         </div>
       )}
