@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { BookingService } from "@/services/BookingService";
 
 const actionSchema = z.object({
-  action: z.enum(["APPROVE", "REJECT"]),
+  action: z.enum(["APPROVE", "REJECT", "WITHDRAW"]),
 });
 
 export async function PATCH(
@@ -29,34 +29,51 @@ export async function PATCH(
 
   const { id } = await params;
   try {
-    const outcome = await BookingService.reviewBooking(id, parsed.data.action);
+    let updated;
+    
+    if (parsed.data.action === "WITHDRAW") {
+      const outcome = await BookingService.withdrawBooking(id);
+      if (outcome.type === "not_found") {
+        return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+      }
+      if (outcome.type === "invalid_state") {
+        return NextResponse.json(
+          { error: `Only approved bookings can be withdrawn. Current: ${outcome.status}` },
+          { status: 400 }
+        );
+      }
+      updated = outcome.updated;
+    } else {
+      const outcome = await BookingService.reviewBooking(id, parsed.data.action as "APPROVE" | "REJECT");
 
-    if (outcome.type === "not_found") {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    }
-    if (outcome.type === "invalid_state") {
-      return NextResponse.json(
-        { error: `Only pending bookings can be reviewed. Current: ${outcome.status}` },
-        { status: 400 }
-      );
-    }
-    if (outcome.type === "conflict") {
-      return NextResponse.json(
-        {
-          error: "Conflict detected with approved bookings. Cannot approve.",
-          conflictCount: outcome.conflictCount,
-        },
-        { status: 409 }
-      );
-    }
-    if (outcome.type === "state_changed") {
-      return NextResponse.json(
-        { error: "Booking state changed by another process" },
-        { status: 409 }
-      );
+      if (outcome.type === "not_found") {
+        return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+      }
+      if (outcome.type === "invalid_state") {
+        return NextResponse.json(
+          { error: `Only pending bookings can be reviewed. Current: ${outcome.status}` },
+          { status: 400 }
+        );
+      }
+      if (outcome.type === "conflict") {
+        return NextResponse.json(
+          {
+            error: "Conflict detected with approved bookings. Cannot approve.",
+            conflictCount: outcome.conflictCount,
+          },
+          { status: 409 }
+        );
+      }
+      if (outcome.type === "state_changed") {
+        return NextResponse.json(
+          { error: "Booking state changed by another process" },
+          { status: 409 }
+        );
+      }
+
+      updated = outcome.updated;
     }
 
-    const updated = outcome.updated;
     if (!updated) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }

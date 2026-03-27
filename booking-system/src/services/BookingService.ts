@@ -132,4 +132,38 @@ export class BookingService {
       return { type: "updated" as const, updated };
     });
   }
+
+  static async withdrawBooking(id: string) {
+    return prisma.$transaction(async (tx) => {
+      // Row-level lock
+      await tx.$queryRaw`SELECT id FROM "Booking" WHERE id = ${id} FOR UPDATE`;
+
+      const booking = await tx.booking.findUnique({ where: { id } });
+      if (!booking) return { type: "not_found" as const };
+
+      if (booking.status !== BookingStatus.APPROVED) {
+        return {
+          type: "invalid_state" as const,
+          status: booking.status,
+        };
+      }
+
+      await tx.booking.update({
+        where: { id },
+        data: { status: BookingStatus.PENDING },
+      });
+
+      const updated = await tx.booking.findUnique({
+        where: { id },
+        include: {
+          hall: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+
+      return { type: "updated" as const, updated };
+    });
+  }
 }

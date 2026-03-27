@@ -75,6 +75,7 @@ export function AdminDashboard() {
   const [editName, setEditName] = useState("");
   const [editCapacity, setEditCapacity] = useState<string>("");
   const [hallSaving, setHallSaving] = useState(false);
+  const [deletingHallId, setDeletingHallId] = useState<string | null>(null);
 
   // Reports State
   const [reportPeriod, setReportPeriod] = useState<"today" | "week" | "month">("week");
@@ -166,11 +167,15 @@ export function AdminDashboard() {
 
   // --- Event Handlers ---
 
-  async function updateStatus(id: string, action: "APPROVE" | "REJECT", hasConflict?: boolean) {
+  async function updateStatus(id: string, action: "APPROVE" | "REJECT" | "WITHDRAW", hasConflict?: boolean) {
     if (action === "APPROVE" && hasConflict) {
       const confirmed = window.confirm(
         "⚠️ This booking conflicts with an already approved booking in the same hall/time slot.\n\nAre you sure you want to approve it?"
       );
+      if (!confirmed) return;
+    }
+    if (action === "WITHDRAW") {
+      const confirmed = window.confirm("Are you sure you want to withdraw this approval?");
       if (!confirmed) return;
     }
     try {
@@ -181,6 +186,9 @@ export function AdminDashboard() {
       });
       if (res.ok) {
         // Refresh grids and calendars to surface state change globally
+        if (action === "WITHDRAW") {
+          alert("Approval withdrawn successfully");
+        }
         void loadBookings();
         void loadMiscData();
       } else {
@@ -198,7 +206,7 @@ export function AdminDashboard() {
     if (!editingHall) return;
     setHallSaving(true);
     try {
-      const res = await fetch(`/api/halls/${editingHall.id}`, {
+      const res = await fetch(`/api/admin/halls/${editingHall.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -217,6 +225,26 @@ export function AdminDashboard() {
       alert("A network error occurred.");
     }
     setHallSaving(false);
+  }
+
+  async function handleHallDelete(id: string) {
+    if (!window.confirm("Are you sure you want to delete this hall?")) return;
+    setDeletingHallId(id);
+    try {
+      const res = await fetch(`/api/admin/halls/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        alert("Hall deleted successfully");
+        void loadHalls();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to delete hall");
+      }
+    } catch {
+      alert("A network error occurred.");
+    }
+    setDeletingHallId(null);
   }
 
   async function handlePrintRequest(e: React.FormEvent<HTMLFormElement>) {
@@ -387,6 +415,13 @@ export function AdminDashboard() {
                                   Reject
                                 </button>
                               </div>
+                            ) : b.status === "APPROVED" ? (
+                              <button
+                                onClick={() => void updateStatus(b.id, "WITHDRAW")}
+                                className="rounded-md bg-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-300 border border-slate-300 shadow-sm active:scale-95 transition-all whitespace-nowrap"
+                              >
+                                Withdraw Approval
+                              </button>
                             ) : (
                               <span className="text-slate-600 text-xs font-bold pl-2 uppercase tracking-tight">Processed</span>
                             )}
@@ -468,16 +503,25 @@ export function AdminDashboard() {
                             {h.capacity != null ? h.capacity : <span className="text-slate-400 italic">Not set</span>}
                           </td>
                           <td className="px-5 py-4">
-                            <button
-                              onClick={() => {
-                                setEditingHall(h);
-                                setEditName(h.name);
-                                setEditCapacity(h.capacity != null ? String(h.capacity) : "");
-                              }}
-                              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 shadow-md shadow-blue-600/20 active:scale-95 transition-all"
-                            >
-                              ✏️ Edit
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingHall(h);
+                                  setEditName(h.name);
+                                  setEditCapacity(h.capacity != null ? String(h.capacity) : "");
+                                }}
+                                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 shadow-md shadow-blue-600/20 active:scale-95 transition-all"
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                onClick={() => void handleHallDelete(h.id)}
+                                disabled={deletingHallId === h.id}
+                                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-black text-white hover:bg-red-700 shadow-md shadow-red-600/20 active:scale-95 transition-all disabled:opacity-50"
+                              >
+                                {deletingHallId === h.id ? "Deleting..." : "🗑️ Delete"}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
