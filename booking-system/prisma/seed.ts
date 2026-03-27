@@ -52,16 +52,6 @@ async function main() {
       password: "Faculty@123",
     },
     {
-      name: "Anantharaman",
-      email: "anantharaman0607@gmail.com",
-      password: "123456",
-    },
-    {
-      name: "Anant VJ",
-      email: "anantvj06@gmail.com",
-      password: "123456",
-    },
-    {
       name: "Shanmugapriya",
       email: "riyashanmu1@gmail.com",
       password: "123456",
