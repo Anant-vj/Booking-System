@@ -18,6 +18,8 @@ type Booking = {
   createdAt: string;
   user: User;
   hall: Hall;
+  hasConflict?: boolean;
+  conflictCount?: number;
 };
 type ThrottleAudit = {
   id: string;
@@ -37,11 +39,12 @@ type ReportsData = {
   previewBookings?: Booking[];
 };
 
-type TabId = "bookings" | "calendar" | "reports" | "security";
+type TabId = "bookings" | "calendar" | "halls" | "reports" | "security";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "bookings", label: "Bookings", icon: "📋" },
   { id: "calendar", label: "Calendar", icon: "📅" },
+  { id: "halls", label: "Halls", icon: "🏛️" },
   { id: "reports", label: "Reports", icon: "📊" },
   { id: "security", label: "Security", icon: "🔐" },
 ];
@@ -64,6 +67,14 @@ export function AdminDashboard() {
   // Misc Dashboard State
   const [allHallsWithBookings, setAllHallsWithBookings] = useState<any[]>([]);
   const [throttleAudits, setThrottleAudits] = useState<ThrottleAudit[]>([]);
+
+  // Halls Management State
+  const [halls, setHalls] = useState<Hall[]>([]);
+  const [hallsLoading, setHallsLoading] = useState(false);
+  const [editingHall, setEditingHall] = useState<Hall | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCapacity, setEditCapacity] = useState<string>("");
+  const [hallSaving, setHallSaving] = useState(false);
 
   // Reports State
   const [reportPeriod, setReportPeriod] = useState<"today" | "week" | "month">("week");
@@ -97,6 +108,19 @@ export function AdminDashboard() {
     }
     setBookingLoading(false);
   }, [bookingPage, bookingFilter]);
+
+  const loadHalls = useCallback(async () => {
+    setHallsLoading(true);
+    try {
+      const res = await fetch("/api/halls");
+      if (res.ok) {
+        setHalls(await res.json());
+      }
+    } catch (e) {
+      console.error("Failed to load halls", e);
+    }
+    setHallsLoading(false);
+  }, []);
 
   const loadReports = useCallback(async () => {
     try {
@@ -136,29 +160,63 @@ export function AdminDashboard() {
   // Trigger once on mount for static datasets
   useEffect(() => {
     void loadMiscData();
-  }, [loadMiscData]);
+    void loadHalls();
+  }, [loadMiscData, loadHalls]);
 
 
   // --- Event Handlers ---
 
-  async function updateStatus(id: string, status: "APPROVED" | "REJECTED") {
+  async function updateStatus(id: string, action: "APPROVE" | "REJECT", hasConflict?: boolean) {
+    if (action === "APPROVE" && hasConflict) {
+      const confirmed = window.confirm(
+        "⚠️ This booking conflicts with an already approved booking in the same hall/time slot.\n\nAre you sure you want to approve it?"
+      );
+      if (!confirmed) return;
+    }
     try {
       const res = await fetch(`/api/admin/bookings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ action }),
       });
       if (res.ok) {
         // Refresh grids and calendars to surface state change globally
         void loadBookings();
         void loadMiscData();
       } else {
-        alert("Failed to update booking status.");
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to update booking status.");
       }
     } catch (e) {
       console.error("Update status error:", e);
       alert("A network error occurred.");
     }
+  }
+
+  async function handleHallEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingHall) return;
+    setHallSaving(true);
+    try {
+      const res = await fetch(`/api/halls/${editingHall.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          capacity: editCapacity ? parseInt(editCapacity, 10) : null,
+        }),
+      });
+      if (res.ok) {
+        setEditingHall(null);
+        void loadHalls();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to update hall.");
+      }
+    } catch {
+      alert("A network error occurred.");
+    }
+    setHallSaving(false);
   }
 
   async function handlePrintRequest(e: React.FormEvent<HTMLFormElement>) {
@@ -304,19 +362,26 @@ export function AdminDashboard() {
                             {b.purpose || "—"}
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap align-top">
-                            <StatusBadge status={b.status} />
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={b.status} />
+                              {b.hasConflict && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700 border border-red-300 shadow-sm" title={`Conflicts with ${b.conflictCount} approved booking(s)`}>
+                                  ⚠ Conflict
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap align-top">
                             {b.status === "PENDING" ? (
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => void updateStatus(b.id, "APPROVED")}
+                                  onClick={() => void updateStatus(b.id, "APPROVE", b.hasConflict)}
                                   className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-black text-white hover:bg-green-700 shadow-md shadow-green-600/20 active:scale-95 transition-all"
                                 >
                                   Approve
                                 </button>
                                 <button
-                                  onClick={() => void updateStatus(b.id, "REJECTED")}
+                                  onClick={() => void updateStatus(b.id, "REJECT")}
                                   className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-black text-white hover:bg-red-700 shadow-md shadow-red-600/20 active:scale-95 transition-all"
                                 >
                                   Reject
@@ -357,6 +422,126 @@ export function AdminDashboard() {
                 <HallAvailabilityCalendar halls={allHallsWithBookings} />
               </div>
             </div>
+          </section>
+        )}
+
+        {/* 🏛️ HALLS MANAGEMENT SECTION */}
+        {activeTab === "halls" && (
+          <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col w-full">
+            <div className="border-b border-slate-200 p-4 sm:p-6 pb-4">
+              <h2 className="text-xl font-bold text-gray-900">Manage Halls</h2>
+              <p className="mt-1 text-sm text-slate-700 font-medium">
+                View and edit hall details. Capacity and name can be updated.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto w-full">
+              <div className="min-w-[500px] w-full">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-200 border-b-2 border-slate-300 text-left text-xs font-black text-slate-900 uppercase tracking-wider">
+                      <th className="px-5 py-4">Hall Name</th>
+                      <th className="px-5 py-4">Capacity</th>
+                      <th className="px-5 py-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {hallsLoading ? (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-16 text-center text-gray-500">
+                          <div className="mx-auto w-6 h-6 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mb-3" />
+                          Loading halls...
+                        </td>
+                      </tr>
+                    ) : halls.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
+                          <div className="text-lg mb-1">🏛️</div>
+                          No halls found.
+                        </td>
+                      </tr>
+                    ) : (
+                      halls.map((h) => (
+                        <tr key={h.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-4 font-bold text-gray-900">{h.name}</td>
+                          <td className="px-5 py-4 text-slate-800 font-medium">
+                            {h.capacity != null ? h.capacity : <span className="text-slate-400 italic">Not set</span>}
+                          </td>
+                          <td className="px-5 py-4">
+                            <button
+                              onClick={() => {
+                                setEditingHall(h);
+                                setEditName(h.name);
+                                setEditCapacity(h.capacity != null ? String(h.capacity) : "");
+                              }}
+                              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 shadow-md shadow-blue-600/20 active:scale-95 transition-all"
+                            >
+                              ✏️ Edit
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Edit Hall Modal */}
+            {editingHall && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <form
+                  onSubmit={handleHallEdit}
+                  className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md mx-4 overflow-hidden"
+                >
+                  <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                    <h3 className="text-lg font-bold text-gray-900">Edit Hall</h3>
+                    <p className="text-xs text-slate-600 mt-0.5">Update hall name and capacity</p>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 mb-1.5">Hall Name</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                        minLength={2}
+                        maxLength={100}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 mb-1.5">Capacity <span className="text-slate-400 font-normal">(optional)</span></label>
+                      <input
+                        type="number"
+                        value={editCapacity}
+                        onChange={(e) => setEditCapacity(e.target.value)}
+                        min={1}
+                        placeholder="e.g. 200"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditingHall(null)}
+                      className="px-4 py-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={hallSaving || !editName.trim()}
+                      className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {hallSaving ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </section>
         )}
 
