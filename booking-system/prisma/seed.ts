@@ -61,6 +61,16 @@ async function main() {
       email: "anantvj06@gmail.com",
       password: "123456",
     },
+    {
+      name: "Shanmugapriya",
+      email: "riyashanmu1@gmail.com",
+      password: "123456",
+    },
+    {
+      name: "Sandya",
+      email: "sandyaselvam@gmail.com",
+      password: "123456",
+    },
   ];
 
   for (const faculty of facultyList) {
