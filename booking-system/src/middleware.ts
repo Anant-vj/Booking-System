@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 const SUPER_ADMIN_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-export default auth((req) => {
+export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
-  const isAuth = !!req.auth;
-  const role = req.auth?.user?.role;
+  
+  // Use getToken from next-auth/jwt to read the session cookie without Prisma
+  const token = await getToken({ 
+    req, 
+    secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production"
+  });
+  
+  const isAuth = !!token;
+  const role = token?.role as string | undefined;
   const isSuperAdmin = role === "SUPER_ADMIN";
-  const mustChangePassword = (req.auth?.user as any)?.mustChangePassword;
+  const mustChangePassword = token?.mustChangePassword as boolean | undefined;
 
   // Path matchers
   const isSuperAdminRoute = nextUrl.pathname.startsWith("/super-admin");
@@ -83,7 +92,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [
