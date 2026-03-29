@@ -1,6 +1,6 @@
 import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/notification-bell";type AppHeaderProps = {
-  role: "ADMIN" | "FACULTY";
+  role: "ADMIN" | "FACULTY" | "SUPER_ADMIN";
   email: string;
   userName?: string;
 };
