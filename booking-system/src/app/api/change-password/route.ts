@@ -56,7 +56,10 @@ export async function POST(request: Request) {
     // Update password
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { password: hashedPassword },
+      data: { 
+        password: hashedPassword,
+        mustChangePassword: false
+      },
     });
 
     return NextResponse.json({ message: "Password updated successfully" });

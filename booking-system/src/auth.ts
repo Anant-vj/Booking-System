@@ -6,10 +6,20 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { ThrottleService } from "@/services/ThrottleService";
+import { CredentialsSignin } from "next-auth";
+
+class CustomAuthError extends CredentialsSignin {
+  code: string;
+  constructor(message: string) {
+    super();
+    this.code = message;
+  }
+}
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+  isSuperAdmin: z.string().optional(),
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -25,42 +35,120 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        isSuperAdmin: { label: "isSuperAdmin", type: "text" }
       },
       async authorize(credentials, request) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
         
-        // SECURE: Use ThrottleService to extract IP from trusted headers
-        const ip = ThrottleService.extractIp(request.headers);
-
-        try {
-          const blocked = await ThrottleService.isBlocked(parsed.data.email, ip);
-          if (blocked) return null;
-        } catch (error) {
-          console.error("Rate-limit check failed", error);
-        }
+        const isSuperAdminLogin = parsed.data.isSuperAdmin === "true";
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email.toLowerCase() },
         });
-        
-        if (!user) {
-          try {
-            await ThrottleService.registerFailure(parsed.data.email, ip);
-          } catch (error) {
-            console.error("Failed to record login failure", error);
+
+        if (isSuperAdminLogin) {
+          if (!user || user.role !== "SUPER_ADMIN") return null;
+
+          if (user.lockedUntil && user.lockedUntil > new Date()) {
+            const timeString = user.lockedUntil.toLocaleTimeString();
+            throw new CustomAuthError(`Account locked. Try again after ${timeString}`);
           }
-          return null;
+
+          const isValid = await bcrypt.compare(parsed.data.password, user.password);
+          if (!isValid) {
+            const newAttempts = user.loginAttempts + 1;
+            const updates: any = { loginAttempts: newAttempts };
+            let lockedUntil = null;
+            if (newAttempts >= 5) {
+              lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+              updates.lockedUntil = lockedUntil;
+            }
+            await prisma.user.update({ where: { id: user.id }, data: updates });
+
+            const ip = ThrottleService.extractIp(request.headers);
+            await prisma.loginThrottleAudit.create({
+              data: {
+                throttleKey: `superadmin::${user.email}`,
+                userId: user.id,
+                ipAddress: ip,
+                action: lockedUntil ? "LOCKOUT" : "FAILURE",
+                note: `Failed Super Admin login attempt (${newAttempts}/5)`,
+              }
+            });
+
+            if (lockedUntil) {
+              const timeString = lockedUntil.toLocaleTimeString();
+              throw new CustomAuthError(`Account locked. Try again after ${timeString}`);
+            }
+
+            throw new CustomAuthError("CredentialsSignin");
+          }
+
+          if (user.loginAttempts > 0 || user.lockedUntil) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { loginAttempts: 0, lockedUntil: null }
+            });
+          }
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            mustChangePassword: user.mustChangePassword
+          } as any;
         }
 
+        // Standard logic for Admin/Faculty
+        if (!user || user.role === "SUPER_ADMIN") return null;
+
+        const ip = ThrottleService.extractIp(request.headers);
+        try {
+          const blocked = await ThrottleService.isBlocked(parsed.data.email, ip);
+          if (blocked) {
+            const throttleKey = ThrottleService.keyFor(parsed.data.email, ip);
+            const row = await prisma.loginThrottle.findUnique({ where: { key: throttleKey } });
+            if (row?.blockedUntil) {
+              const timeString = row.blockedUntil.toLocaleTimeString();
+              throw new CustomAuthError(`Account locked. Try again after ${timeString}`);
+            }
+            throw new CustomAuthError("Account locked. Try again later.");
+          }
+        } catch (error) {
+          if (error instanceof CustomAuthError) throw error;
+          console.error("Rate-limit check failed", error);
+        }
+        
         const isValid = await bcrypt.compare(parsed.data.password, user.password);
         if (!isValid) {
           try {
             await ThrottleService.registerFailure(parsed.data.email, ip);
+            const isNowBlocked = await ThrottleService.isBlocked(parsed.data.email, ip);
+            
+            await prisma.loginThrottleAudit.create({
+              data: {
+                throttleKey: ThrottleService.keyFor(parsed.data.email, ip),
+                userId: user.id,
+                ipAddress: ip,
+                action: isNowBlocked ? "LOCKOUT" : "FAILURE",
+                note: `Failed login attempt for ${user.role} (${parsed.data.email})`,
+              }
+            });
+
+            if (isNowBlocked) {
+              const row = await prisma.loginThrottle.findUnique({ where: { key: ThrottleService.keyFor(parsed.data.email, ip) } });
+              if (row?.blockedUntil) {
+                const timeString = row.blockedUntil.toLocaleTimeString();
+                throw new CustomAuthError(`Account locked. Try again after ${timeString}`);
+              }
+            }
           } catch (error) {
+            if (error instanceof CustomAuthError) throw error;
             console.error("Failed to record login failure", error);
           }
-          return null;
+          throw new CustomAuthError("CredentialsSignin");
         }
 
         try {
@@ -82,6 +170,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.role = user.role as Role;
+        if ('mustChangePassword' in user) {
+          token.mustChangePassword = user.mustChangePassword;
+        }
       }
       return token;
     },
@@ -89,6 +180,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.sub ?? "";
         session.user.role = token.role as Role;
+        (session.user as any).mustChangePassword = token.mustChangePassword;
       }
       return session;
     },

@@ -1,6 +1,5 @@
 import { LogoutButton } from "@/components/logout-button";
-
-type AppHeaderProps = {
+import { NotificationBell } from "@/components/notification-bell";type AppHeaderProps = {
   role: "ADMIN" | "FACULTY";
   email: string;
   userName?: string;
@@ -47,6 +46,7 @@ export function AppHeader({ role, email, userName }: AppHeaderProps) {
           </div>
           
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <a 
               href="/change-password"
               className="hidden md:inline-flex items-center rounded border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"

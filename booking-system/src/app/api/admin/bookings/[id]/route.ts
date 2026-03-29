@@ -78,6 +78,33 @@ export async function PATCH(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
+    const adminName = result.session?.user?.name || "Admin";
+    const dateStr = updated.startTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+    let notificationTitle = "";
+    let notificationMessage = "";
+
+    if (parsed.data.action === "APPROVE") {
+      notificationTitle = "Booking Approved ✅";
+      notificationMessage = `Your booking for ${updated.hall.name} on ${dateStr} was approved by ${adminName}`;
+    } else if (parsed.data.action === "REJECT") {
+      notificationTitle = "Booking Rejected ❌";
+      notificationMessage = `Your booking for ${updated.hall.name} on ${dateStr} was rejected by ${adminName}`;
+    } else if (parsed.data.action === "WITHDRAW") {
+      notificationTitle = "Approval Withdrawn ⚠️";
+      notificationMessage = `Your previously approved booking for ${updated.hall.name} on ${dateStr} was withdrawn by ${adminName}`;
+    }
+
+    if (notificationTitle && notificationMessage) {
+      await prisma.notification.create({
+        data: {
+          userId: updated.userId,
+          title: notificationTitle,
+          message: notificationMessage,
+        }
+      });
+    }
+
     // Send email notification (non-blocking)
     void sendBookingStatusEmail({
       to: updated.user.email,

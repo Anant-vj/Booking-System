@@ -10,6 +10,8 @@ const updateHallSchema = z.object({
   capacity: z.number().int().positive().optional().nullable(),
 });
 
+export const PUT = PATCH;
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

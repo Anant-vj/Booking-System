@@ -77,6 +77,11 @@ export function AdminDashboard() {
   const [hallSaving, setHallSaving] = useState(false);
   const [deletingHallId, setDeletingHallId] = useState<string | null>(null);
 
+  const [isAddingHall, setIsAddingHall] = useState(false);
+  const [newHallName, setNewHallName] = useState("");
+  const [newHallCapacity, setNewHallCapacity] = useState("");
+  const [hallAdding, setHallAdding] = useState(false);
+
   // Reports State
   const [reportPeriod, setReportPeriod] = useState<"today" | "week" | "month">("week");
   const [reports, setReports] = useState<ReportsData | null>(null);
@@ -245,6 +250,33 @@ export function AdminDashboard() {
       alert("A network error occurred.");
     }
     setDeletingHallId(null);
+  }
+
+  async function handleAddHall(e: React.FormEvent) {
+    e.preventDefault();
+    setHallAdding(true);
+    try {
+      const res = await fetch("/api/admin/halls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newHallName.trim(),
+          capacity: newHallCapacity ? parseInt(newHallCapacity, 10) : null,
+        }),
+      });
+      if (res.ok) {
+        setIsAddingHall(false);
+        setNewHallName("");
+        setNewHallCapacity("");
+        void loadHalls();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to add hall.");
+      }
+    } catch {
+      alert("A network error occurred.");
+    }
+    setHallAdding(false);
   }
 
   async function handlePrintRequest(e: React.FormEvent<HTMLFormElement>) {
@@ -463,11 +495,19 @@ export function AdminDashboard() {
         {/* 🏛️ HALLS MANAGEMENT SECTION */}
         {activeTab === "halls" && (
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col w-full">
-            <div className="border-b border-slate-200 p-4 sm:p-6 pb-4">
-              <h2 className="text-xl font-bold text-gray-900">Manage Halls</h2>
-              <p className="mt-1 text-sm text-slate-700 font-medium">
-                View and edit hall details. Capacity and name can be updated.
-              </p>
+            <div className="border-b border-slate-200 p-4 sm:p-6 pb-4 flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Manage Halls</h2>
+                <p className="mt-1 text-sm text-slate-700 font-medium">
+                  View and edit hall details. Capacity and name can be updated.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddingHall(true)}
+                className="bg-slate-900 text-white px-4 py-2 rounded text-sm font-bold hover:bg-slate-800 transition-colors shadow-sm"
+              >
+                + Add Hall
+              </button>
             </div>
 
             <div className="overflow-x-auto w-full">
@@ -581,6 +621,62 @@ export function AdminDashboard() {
                       className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {hallSaving ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Add Hall Modal */}
+            {isAddingHall && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <form
+                  onSubmit={handleAddHall}
+                  className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md mx-4 overflow-hidden"
+                >
+                  <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                    <h3 className="text-lg font-bold text-gray-900">Add New Hall</h3>
+                    <p className="text-xs text-slate-600 mt-0.5">Enter details for the new hall</p>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 mb-1.5">Hall Name</label>
+                      <input
+                        type="text"
+                        value={newHallName}
+                        onChange={(e) => setNewHallName(e.target.value)}
+                        required
+                        minLength={2}
+                        maxLength={100}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 mb-1.5">Capacity <span className="text-slate-400 font-normal">(optional)</span></label>
+                      <input
+                        type="number"
+                        value={newHallCapacity}
+                        onChange={(e) => setNewHallCapacity(e.target.value)}
+                        min={1}
+                        placeholder="e.g. 200"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-gray-900 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingHall(false)}
+                      className="px-4 py-2 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={hallAdding || !newHallName.trim()}
+                      className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-md shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {hallAdding ? "Adding..." : "Add Hall"}
                     </button>
                   </div>
                 </form>
@@ -739,7 +835,7 @@ export function AdminDashboard() {
                           {formatDateTime(a.createdAt)}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-gray-900 font-medium">
-                          {a.adminUser.name || a.adminUser.email}
+                          {a.adminUser ? (a.adminUser.name || a.adminUser.email) : "System"}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 border border-gray-200">

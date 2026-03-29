@@ -24,6 +24,54 @@ async function main() {
     });
   }
 
+  // 🔹 Seed Super Admin 1
+  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
+  if (!superAdminEmail) throw new Error("SUPER_ADMIN_EMAIL is required in .env");
+  const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
+  if (!superAdminPassword) throw new Error("SUPER_ADMIN_PASSWORD is required in .env");
+  const superAdminHashed = await bcrypt.hash(superAdminPassword, 10);
+
+  await prisma.user.upsert({
+    where: { email: superAdminEmail },
+    update: {
+      name: "Super Admin 1",
+      role: Role.SUPER_ADMIN,
+      password: superAdminHashed,
+      mustChangePassword: true,
+    },
+    create: {
+      name: "Super Admin 1",
+      email: superAdminEmail,
+      password: superAdminHashed,
+      role: Role.SUPER_ADMIN,
+      mustChangePassword: true,
+    },
+  });
+
+  // 🔹 Seed Super Admin 2
+  const superAdmin2Email = process.env.SUPER_ADMIN_2_EMAIL;
+  if (!superAdmin2Email) throw new Error("SUPER_ADMIN_2_EMAIL is required in .env");
+  const superAdmin2Password = process.env.SUPER_ADMIN_2_PASSWORD;
+  if (!superAdmin2Password) throw new Error("SUPER_ADMIN_2_PASSWORD is required in .env");
+  const superAdmin2Hashed = await bcrypt.hash(superAdmin2Password, 10);
+
+  await prisma.user.upsert({
+    where: { email: superAdmin2Email },
+    update: {
+      name: "Super Admin 2",
+      role: Role.SUPER_ADMIN,
+      password: superAdmin2Hashed,
+      mustChangePassword: true,
+    },
+    create: {
+      name: "Super Admin 2",
+      email: superAdmin2Email,
+      password: superAdmin2Hashed,
+      role: Role.SUPER_ADMIN,
+      mustChangePassword: true,
+    },
+  });
+
   // 🔹 Seed Admin
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? "admin@college.edu";
   const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD ?? "Admin@123";
@@ -44,48 +92,15 @@ async function main() {
     },
   });
 
-  // 🔹 Faculty List (SCALABLE WAY)
+  // 🔹 Faculty List (Cleaned for SECURITY: Only ONE Demo Faculty)
+  const defaultFacultyPassword = process.env.DEFAULT_FACULTY_PASSWORD ?? "Faculty@123";
+  
   const facultyList = [
     {
       name: "Demo Faculty",
       email: "faculty@college.edu",
-      password: "Faculty@123",
-    },
-    {
-      name: "Shanmugapriya",
-      email: "riyashanmu1@gmail.com",
-      password: "123456",
-    },
-    {
-      name: "Sandya",
-      email: "sandyaselvam@gmail.com",
-      password: "123456",
-    },
-    {
-      name: "Karthika",
-      email: "mkarthioff@gmail.com",
-      password: "123456",
-    },
-    {
-      name: "Arjun",
-      email: "arjun@college.edu",
-      password: "Faculty@123",
-    },
-    {
-      name: "Priya",
-      email: "priya@college.edu",
-      password: "Faculty@123",
-    },
-    {
-      name: "Rahul",
-      email: "rahul@college.edu",
-      password: "Faculty@123",
-    },
-    {
-      name: "Sneha",
-      email: "sneha@college.edu",
-      password: "Faculty@123",
-    },
+      password: defaultFacultyPassword,
+    }
   ];
 
   for (const faculty of facultyList) {

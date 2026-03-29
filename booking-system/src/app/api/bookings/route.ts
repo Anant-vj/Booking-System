@@ -69,6 +69,18 @@ export async function POST(request: Request) {
       },
     });
 
+    // Notify all Admins
+    const admins = await prisma.user.findMany({ where: { role: "ADMIN" } });
+    if (admins.length > 0) {
+      await prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title: "New Booking Request",
+          message: `${session.user.name || "Faculty"} requested ${booking.hall.name} on ${startTime.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        })),
+      });
+    }
+
     return NextResponse.json({
       ...booking,
       hasConflict: conflictCount > 0,

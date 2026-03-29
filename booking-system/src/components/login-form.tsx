@@ -59,7 +59,11 @@ export function LoginForm({ error }: LoginFormProps) {
       {error ? (
         <div className="mt-5 flex items-start gap-3 text-sm text-red-700 bg-red-50 rounded-lg px-4 py-3 border border-red-200 shadow-sm">
           <span className="text-lg">⚠️</span>
-          <span className="font-semibold pt-0.5">Invalid email or password</span>
+          <span className="font-semibold pt-0.5">
+            {decodeURIComponent(error).includes("Account locked") 
+              ? decodeURIComponent(error) 
+              : "Invalid email or password"}
+          </span>
         </div>
       ) : null}
     </div>

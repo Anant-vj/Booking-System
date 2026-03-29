@@ -11,6 +11,7 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   FACULTY
 }
@@ -23,15 +24,34 @@ enum BookingStatus {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      Role      @default(FACULTY)
-  bookings  Booking[]
-  throttleAudits LoginThrottleAudit[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  name                String
+  email               String    @unique
+  password            String
+  role                Role      @default(FACULTY)
+
+  // Super Admin Security and Password Reset fields
+  passwordResetToken  String?
+  passwordResetExpiry DateTime?
+  loginAttempts       Int       @default(0)
+  lockedUntil         DateTime?
+  mustChangePassword  Boolean   @default(false)
+
+  bookings            Booking[]
+  throttleAudits      LoginThrottleAudit[]
+  notifications       Notification[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Hall {
@@ -74,12 +94,14 @@ model LoginThrottle {
 model LoginThrottleAudit {
   id          String   @id @default(uuid())
   throttleKey String
-  adminUserId String
+  adminUserId String?
+  userId      String?
+  ipAddress   String?
   action      String
   note        String?
   createdAt   DateTime @default(now())
 
-  adminUser   User           @relation(fields: [adminUserId], references: [id])
+  adminUser   User?    @relation(fields: [adminUserId], references: [id])
 
   @@index([throttleKey, createdAt])
   @@index([adminUserId, createdAt])
