@@ -58,7 +58,8 @@ export async function middleware(req: NextRequest) {
     }
 
     // Must change password check
-    if (mustChangePassword && !isSuperAdminChangePass && !nextUrl.pathname.startsWith("/api/")) {
+    const pwdChanged = req.cookies.get("pwd-changed")?.value === "1";
+    if (mustChangePassword && !pwdChanged && !isSuperAdminChangePass && !nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.redirect(new URL("/super-admin/change-password", req.nextUrl));
     }
 

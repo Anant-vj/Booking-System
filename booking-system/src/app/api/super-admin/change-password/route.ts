@@ -29,7 +29,17 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    // Set a cookie so middleware knows the password was changed for this session
+    response.cookies.set("pwd-changed", "1", {
+      path: "/",
+      maxAge: 60 * 60 * 24, // 1 day
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax"
+    });
+
+    return response;
   } catch (error) {
     console.error("Change password error", error);
     return NextResponse.json({ error: "Failed to update password" }, { status: 500 });
