@@ -6,14 +6,14 @@ const SUPER_ADMIN_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
-  
+
   // Use getToken from next-auth/jwt to read the session cookie without Prisma
-  const token = await getToken({ 
-    req, 
+  const token = await getToken({
+    req,
     secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
     secureCookie: process.env.NODE_ENV === "production"
   });
-  
+
   const isAuth = !!token;
   const role = token?.role as string | undefined;
   const isSuperAdmin = role === "SUPER_ADMIN";
@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   const isSuperAdminRoute = nextUrl.pathname.startsWith("/super-admin");
   const isSuperAdminLogin = nextUrl.pathname === "/super-admin/login";
   const isSuperAdminChangePass = nextUrl.pathname === "/super-admin/change-password";
-  
+
   const isAdminRoute = nextUrl.pathname.startsWith("/admin");
   const isFacultyRoute = nextUrl.pathname.startsWith("/faculty");
   const isLoginRoute = nextUrl.pathname === "/login";
@@ -44,7 +44,7 @@ export async function middleware(req: NextRequest) {
     // 2-hour inactivity timeout
     const lastActivityCookie = req.cookies.get("sa-last-activity");
     const now = Date.now();
-    
+
     if (lastActivityCookie) {
       const lastActivity = parseInt(lastActivityCookie.value, 10);
       if (now - lastActivity > SUPER_ADMIN_TIMEOUT_MS) {
