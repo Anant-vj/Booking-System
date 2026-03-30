@@ -5,12 +5,7 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* Theme configuration moved to tailwind.config.js to satisfy CSS linter */
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -57,14 +52,16 @@ body {
   h4,
   h5,
   h6 {
-    @apply text-gray-900 font-semibold;
+    color: rgb(17 24 39);
+    font-weight: 600;
   }
 
   th {
-    @apply text-gray-700 font-medium;
+    color: rgb(55 65 81);
+    font-weight: 500;
   }
 
   td {
-    @apply text-gray-800;
+    color: rgb(31 41 55);
   }
 }
