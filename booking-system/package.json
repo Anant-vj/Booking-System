@@ -9,8 +9,8 @@
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "db:seed": "prisma db seed"
+   
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
